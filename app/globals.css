@@ -1,144 +1,121 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* -------- Theme tokens (pastel) -------- */
-:root {
-  --bg: #0b0b0c;
-  --fg: #f5f5f6;
-  --card: #141416;
-  --border: rgba(255,255,255,.10);
-  --muted: #b1b1bb;
-
-  --accent: #93c5fd;   /* pastel blue */
-  --accent-2: #60a5fa; /* blue-400 */
-  --pastel-fill: rgba(147,197,253,.14); /* light blue fill */
-  --pastel-outline: rgba(147,197,253,.35);
+/* ---------- Theme basics ---------- */
+:root{
+  --bg: #0b0b0d;
+  --card: #15161a;
+  --text: #e7eaf2;
+  --muted: #a0a6b8;
+  --border: rgba(255,255,255,0.12);
+  --ring: #60a5fa; /* focus ring */
+  --bar1: #22c55e; /* green */
+  --bar2: #60a5fa; /* blue */
+  --bar3: #a78bfa; /* purple */
 }
+html,body{background:var(--bg);color:var(--text);}
+*{box-sizing:border-box}
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f8fafc;
-    --fg: #0b0b0c;
-    --card: #ffffffcc;
-    --border: rgba(0,0,0,.08);
-    --muted: #6b7280;
-
-    --accent: #93c5fd;
-    --accent-2: #3b82f6;
-    --pastel-fill: rgba(147,197,253,.22);
-    --pastel-outline: rgba(147,197,253,.45);
-  }
-}
-
-html, body { background: var(--bg); color: var(--fg); }
-
-/* Cards */
+/* ---------- Cards, badges ---------- */
 .card{
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  box-shadow: 0 2px 12px rgba(0,0,0,.22);
-  backdrop-filter: blur(6px);
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.badge{
+  font-size:12px;
+  padding:6px 10px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  opacity:.9;
 }
 
-/* Inputs / selects / textareas */
-.input, select.input, textarea.input{
+/* ---------- Typography ---------- */
+.section-title{font-size:1.1rem;font-weight:700}
+
+/* ---------- Inputs: transparent + outlined ---------- */
+.input{
   width:100%;
-  border:1px solid var(--border);
-  border-radius:12px;
   padding:12px 14px;
-  background: color-mix(in oklab, var(--card) 92%, var(--bg));
-  color: var(--fg);
-  outline: none;
+  border-radius:14px;
+  background:transparent;               /* no fill */
+  color:var(--text);
+  border:1.5px solid var(--border);     /* outline */
+  transition:border-color .15s, box-shadow .15s;
 }
 .input:focus{
-  border-color: var(--pastel-outline);
-  box-shadow:0 0 0 4px var(--pastel-fill);
+  outline:none;
+  border-color:var(--ring);
+  box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 20%, transparent);
 }
-.input::placeholder{ color: var(--muted); }
+.input[disabled]{opacity:.6}
 
-/* Pastel variants */
-.pastel-input{
-  background: linear-gradient(0deg, var(--pastel-fill), var(--pastel-fill)) padding-box,
-              linear-gradient(var(--pastel-outline), var(--pastel-outline)) border-box;
-  border: 1px solid transparent;
-}
-.pastel-select{
-  background: linear-gradient(0deg, var(--pastel-fill), var(--pastel-fill)) padding-box,
-              linear-gradient(var(--pastel-outline), var(--pastel-outline)) border-box;
-  border: 1px solid transparent;
-}
+/* Checkbox/radio/select inherit .input, so keep neutral bg */
+.pastel-input, .pastel-select{ background:transparent; }
 
-/* Labels & small text */
-.label{ font-size:14px; color: var(--muted); }
-
-/* Badge */
-.badge{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:4px 10px; border-radius:999px;
-  border:1px dashed var(--border);
-  color: var(--muted); font-size:12px;
-}
-
-/* Buttons */
+/* ---------- Buttons ---------- */
 .btn{
-  width:100%;
-  border:0; border-radius:12px; padding:12px 14px;
-  font-weight:700;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color:#0b0b0c;
+  background:linear-gradient(180deg,#3b82f6,#2563eb);
+  color:white; border:none; padding:12px 14px;
+  border-radius:12px; font-weight:600;
 }
-.btn[disabled]{ opacity:.6; }
+.btn:disabled{opacity:.6}
 .btn-secondary{
-  width:auto; border:1px solid var(--pastel-outline); border-radius:10px; padding:10px 12px;
-  background: var(--pastel-fill); color: var(--fg);
+  background:transparent; color:var(--text);
+  border:1.5px solid var(--border);
+  padding:12px 14px; border-radius:12px;
 }
 
-/* Section title */
-.section-title{ font-size:20px; font-weight:700; opacity:.95; }
-
-/* Loading overlay (green bubbly) */
-.loading-overlay{
-  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-  background:rgba(0,0,0,.6); backdrop-filter: blur(2px); z-index:50;
-}
-.loader-card{
-  width:min(520px, 92vw); padding:18px; border-radius:16px; background:var(--card); border:1px solid var(--border);
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
-}
-/* Green bubbly progress */
-.progress-wrap{
-  position:relative; height:22px; border-radius:999px; overflow:hidden;
-  background: rgba(34,197,94,.15);
-  border:1px solid rgba(34,197,94,.25);
-}
-.progress-fill{
-  position:absolute; inset:0 auto 0 0; height:100%; width:0%;
-  border-radius:999px;
-  background:
-    radial-gradient(circle at 12px 11px, rgba(255,255,255,.35) 0 7px, rgba(255,255,255,0) 8px),
-    linear-gradient(90deg, #22c55e, #16a34a);
-  background-size: 28px 28px, 100% 100%;
-  background-repeat: repeat;
-  animation: fill5s 5s linear forwards, bubbles 1.4s linear infinite;
-}
-@keyframes fill5s { from{ width:0% } to{ width:100% } }
-@keyframes bubbles { from{ background-position: 0 0, 0 0 } to{ background-position: 28px 0, 0 0 } }
-
-/* Suggestions dropdown */
+/* ---------- Suggestion dropdown ---------- */
 .suggestion-panel{
-  position:absolute; top:100%; left:0; right:0; z-index:10;
-  background: var(--card);
-  border: 1px solid var(--pastel-outline);
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.30);
-  margin-top: 6px;
-  overflow: hidden;
+  position:absolute; top:100%; left:0; right:0;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:14px; margin-top:6px; z-index:40;
+  max-height:260px; overflow:auto;
 }
 .suggestion-item{
-  display:block; width:100%; text-align:left;
-  padding:10px 12px; color:var(--fg);
-  border:0; background:transparent; cursor:pointer;
+  width:100%; text-align:left; padding:10px 12px;
+  border:none; background:transparent; color:var(--text);
 }
-.suggestion-item:hover{ background: var(--pastel-fill); }
+.suggestion-item:hover{ background:rgba(255,255,255,0.06) }
+
+/* ---------- Summary table ---------- */
+.summary-table{ width:100%; border-collapse:separate; border-spacing:0 8px }
+.summary-table th{
+  text-align:left; font-size:.85rem; color:var(--muted); width:48%;
+}
+.summary-table td{ font-size:.95rem }
+
+/* ---------- Loading overlay with 3 bars ---------- */
+.loading-overlay{
+  position:fixed; inset:0; z-index:50; display:grid; place-items:center;
+  background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+}
+.loader-card{
+  width:min(560px,90vw);
+  background:var(--card); border:1px solid var(--border);
+  border-radius:18px; padding:22px;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);
+  text-align:center;
+}
+.bars{ display:grid; gap:10px; }
+.bar{
+  height:12px; width:100%; overflow:hidden;
+  background:rgba(255,255,255,0.06);
+  border-radius:999px; position:relative;
+}
+.bar::before{
+  content:""; position:absolute; inset:0;
+  transform-origin:left center;
+  transform:scaleX(0);
+  border-radius:999px;
+  animation:fill var(--dur,2s) linear infinite;
+}
+.bar1::before{ background:var(--bar1); } /* green */
+.bar2::before{ background:var(--bar2); } /* blue */
+.bar3::before{ background:var(--bar3); } /* purple */
+
+/* different speeds across time give a lively feel */
+@keyframes fill{
+  0%   { transform:scaleX(0); }
+  60%  { transform:scaleX(1); }
+  100% { transform:scaleX(1); }
+}
