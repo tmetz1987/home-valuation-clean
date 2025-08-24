@@ -27,10 +27,7 @@
   }
 }
 
-html, body {
-  background: var(--bg);
-  color: var(--fg);
-}
+html, body { background: var(--bg); color: var(--fg); }
 
 /* Cards */
 .card{
@@ -76,6 +73,12 @@ html, body {
   color:#fff;
 }
 .btn[disabled]{ opacity:.6; }
+
+/* Subtle button */
+.btn-secondary{
+  width:auto; border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+  background: color-mix(in oklab, var(--card) 95%, var(--bg)); color: var(--fg);
+}
 
 /* Section title */
 .section-title{ font-size:20px; font-weight:700; opacity:.95; }
