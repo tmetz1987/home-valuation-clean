@@ -12,7 +12,6 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 export default function Page(){
-  // Uncontrolled refs keep Android keyboard open
   const addressRef = useRef(null);
   const sqftRef = useRef(null);
   const lotRef = useRef(null);
@@ -30,21 +29,56 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // suggestions state (address value is NOT in state)
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSug, setShowSug] = useState(false);
-
-  // debounce + focus guards
-  const debounceIdRef = useRef(null);
-  const focusedRef = useRef(false);
-  const abortRef = useRef(null);
+  // suggestions container (outside React)
+  const sugBoxRef = useRef(null);
 
   useEffect(()=>{
-    return () => {
-      if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
-      if (abortRef.current) abortRef.current.abort();
-    };
-  }, []);
+    if (!addressRef.current) return;
+
+    const input = addressRef.current;
+    const sugBox = sugBoxRef.current;
+
+    let debounce;
+    input.addEventListener("input", ()=>{
+      const q = input.value;
+      if (debounce) clearTimeout(debounce);
+      if (q.length < 3) { sugBox.innerHTML=""; return; }
+
+      debounce = setTimeout(async ()=>{
+        try{
+          const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`);
+          const data = await r.json();
+          sugBox.innerHTML = "";
+          (data?.predictions||[]).forEach(p=>{
+            const btn = document.createElement("button");
+            btn.textContent = p.description;
+            btn.className = "suggestion-item";
+            btn.type = "button";
+            btn.onmousedown = e=>e.preventDefault(); // keep keyboard
+            btn.onclick = ()=>{
+              input.value = p.description;
+              sugBox.innerHTML="";
+              input.focus();
+            };
+            sugBox.appendChild(btn);
+          });
+          if((data?.predictions||[]).length){
+            sugBox.style.display="block";
+          } else {
+            sugBox.style.display="none";
+          }
+        }catch(e){}
+      }, 300);
+    });
+
+    input.addEventListener("blur", ()=>{
+      setTimeout(()=>{ if(sugBox) sugBox.style.display="none"; },150);
+    });
+    input.addEventListener("focus", ()=>{
+      if (sugBox.innerHTML.trim()) sugBox.style.display="block";
+    });
+
+  },[]);
 
   function clearForm(){
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
@@ -56,16 +90,7 @@ export default function Page(){
     setRes(null); setSummary(null); setErr(null);
   }
 
-  function startNew(){
-    // keep address; clear the rest
-    for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
-      if (r.current) r.current.value = "";
-    }
-    if (viewRef.current) viewRef.current.value = "none";
-    if (trendRef.current) trendRef.current.value = "flat";
-    if (renoRef.current) renoRef.current.value = "none";
-    setRes(null); setSummary(null); setErr(null);
-  }
+  function startNew(){ clearForm(); }
 
   function downloadSummary(){
     const data = JSON.stringify({ summary, result: res }, null, 2);
@@ -94,7 +119,6 @@ export default function Page(){
         renovations: { level: renoRef.current?.value || "none" }
       };
 
-      // map renovation level → detailed flags
       if(payload.renovations.level === "some") {
         payload.renovations = { kitchen: true, bath: true };
       } else if(payload.renovations.level === "major") {
@@ -103,33 +127,16 @@ export default function Page(){
         payload.renovations = {};
       }
 
-      setSummary({
-        Address: payload.address,
-        "Living area (sqft)": payload.sqft ?? "",
-        "Lot size (sqft)": payload.lotSqft ?? "",
-        Bedrooms: payload.beds ?? "",
-        Bathrooms: payload.baths ?? "",
-        "Year built": payload.yearBuilt ?? "",
-        "Garage spots": payload.garageSpots ?? "",
-        "Condition (1–5)": payload.condition ?? "",
-        View: payload.view,
-        Trend: payload.marketTrend,
-        "Renovation level": renoRef.current?.value || "none"
+      setSummary(payload);
+
+      const r=await fetch("/api/estimate",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
       });
+      const data=await r.json();
+      if(!r.ok) throw new Error(data?.error||"Failed");
 
-      // API + ensure 5s loading screen
-      const api = (async ()=>{
-        const r=await fetch("/api/estimate",{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify(payload)
-        });
-        const data=await r.json();
-        if(!r.ok) throw new Error(data?.error||"Failed");
-        return data;
-      })();
-
-      const data = await api;
       await delay(5000);
       setRes(data);
     }catch(e){ setErr(e.message); }
@@ -145,14 +152,11 @@ export default function Page(){
 
   return (
     <>
-      {/* Loading overlay: 5s green bubbly bar */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
             <div className="mb-3 font-semibold">Loading Home Value</div>
-            <div className="progress-wrap">
-              <div className="progress-fill"></div>
-            </div>
+            <div className="progress-wrap"><div className="progress-fill"></div></div>
             <div className="mt-3 text-sm" style={{color:"var(--muted)"}}>
               Please wait while we analyze your home and nearby sales…
             </div>
@@ -161,7 +165,6 @@ export default function Page(){
       )}
 
       <main className="mx-auto max-w-6xl p-4 md:p-8 grid md:grid-cols-5 gap-6">
-        {/* LEFT: form */}
         <div className="md:col-span-3 space-y-4">
           <div className="card p-5 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -169,133 +172,56 @@ export default function Page(){
               <span className="badge">WA-only Beta</span>
             </div>
 
-            {/* Address: uncontrolled + debounced suggestions. Never blur on tap. */}
             <Field label="Address (Washington)">
               <div className="relative">
                 <input
                   ref={addressRef}
-                  className="input flex-1 pastel-input"
+                  className="input pastel-input w-full"
                   placeholder="Start typing your address…"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  onFocus={()=>{
-                    focusedRef.current = true;
-                    if (suggestions.length) setShowSug(true);
-                  }}
-                  onBlur={()=>{
-                    focusedRef.current = false;
-                    // don't hide immediately—let click handlers run
-                    setTimeout(()=> setShowSug(false), 120);
-                  }}
-                  onInput={(e)=>{
-                    const q = e.target.value || "";
-                    if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
-                    if (q.length < 3) { setSuggestions([]); setShowSug(false); return; }
-                    debounceIdRef.current = setTimeout(async()=>{
-                      try{
-                        if (abortRef.current) abortRef.current.abort();
-                        const ctrl = new AbortController();
-                        abortRef.current = ctrl;
-                        const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store", signal: ctrl.signal });
-                        const data = await r.json();
-                        if (!focusedRef.current) return;
-                        setSuggestions(data?.predictions || []);
-                        setShowSug((data?.predictions||[]).length>0);
-                      }catch(_e){}
-                    }, 300);
-                  }}
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
                 />
-                {showSug && suggestions.length>0 && (
-                  <div className="suggestion-panel" role="listbox">
-                    {suggestions.map(p=>(
-                      <button
-                        type="button"
-                        key={p.place_id}
-                        className="suggestion-item"
-                        // prevent blur on mobile (mouse/touch/pointer)
-                        onMouseDown={(e)=>e.preventDefault()}
-                        onTouchStart={(e)=>e.preventDefault()}
-                        onPointerDown={(e)=>e.preventDefault()}
-                        onClick={()=>{
-                          if (addressRef.current) {
-                            addressRef.current.value = p.description;
-                            addressRef.current.focus(); // keep keyboard up
-                          }
-                          setShowSug(false);
-                        }}
-                        role="option"
-                      >
-                        {p.description}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div ref={sugBoxRef} className="suggestion-panel" style={{display:"none"}}></div>
               </div>
             </Field>
 
-            {/* 1 column on phones, 2 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
-                <input
-                  ref={sqftRef}
-                  className="input pastel-input"
-                  type="text" inputMode="numeric"
-                  placeholder="e.g. 1800"
-                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
-                />
+                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" />
               </Field>
               <Field label="Lot size (sqft)">
-                <input
-                  ref={lotRef}
-                  className="input pastel-input"
-                  type="text" inputMode="numeric"
-                  placeholder="e.g. 6000"
-                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
-                />
+                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" />
               </Field>
-
-              {/* Dropdowns */}
               <Field label="Bedrooms">
-                <select ref={bedsRef} className="input pastel-select" defaultValue="" autoComplete="off">
+                <select ref={bedsRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                  {Array.from({length:10},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
                 </select>
               </Field>
               <Field label="Bathrooms">
-                <select ref={bathsRef} className="input pastel-select" defaultValue="" autoComplete="off">
+                <select ref={bathsRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                  {Array.from({length:10},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
                 </select>
               </Field>
-
               <Field label="Year built">
-                <input
-                  ref={yearRef}
-                  className="input pastel-input"
-                  type="text" inputMode="numeric"
-                  placeholder="e.g. 1995"
-                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
-                />
+                <input ref={yearRef} className="input pastel-input" type="text" inputMode="numeric" />
               </Field>
               <Field label="Garage spots">
-                <select ref={garageRef} className="input pastel-select" defaultValue="" autoComplete="off">
+                <select ref={garageRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                  {Array.from({length:7},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
                 </select>
               </Field>
             </div>
 
-            {/* 1 col on phones, 3 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Condition (1–5)">
-                <select ref={conditionRef} className="input pastel-select" defaultValue="3" autoComplete="off">
-                  {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
+                <select ref={conditionRef} className="input pastel-select" defaultValue="3">
+                  {[1,2,3,4,5].map(n=><option key={n}>{n}</option>)}
                 </select>
               </Field>
               <Field label="View">
-                <select ref={viewRef} className="input pastel-select" defaultValue="none" autoComplete="off">
+                <select ref={viewRef} className="input pastel-select" defaultValue="none">
                   <option value="none">None</option>
                   <option value="city">City</option>
                   <option value="mountain">Mountain</option>
@@ -303,7 +229,7 @@ export default function Page(){
                 </select>
               </Field>
               <Field label="Trend">
-                <select ref={trendRef} className="input pastel-select" defaultValue="flat" autoComplete="off">
+                <select ref={trendRef} className="input pastel-select" defaultValue="flat">
                   <option value="declining">Declining</option>
                   <option value="flat">Flat</option>
                   <option value="rising">Rising</option>
@@ -312,7 +238,7 @@ export default function Page(){
             </div>
 
             <Field label="Renovation level">
-              <select ref={renoRef} className="input pastel-select" defaultValue="none" autoComplete="off">
+              <select ref={renoRef} className="input pastel-select" defaultValue="none">
                 <option value="none">None / original</option>
                 <option value="some">Some updates (kitchen/bath)</option>
                 <option value="major">Major remodel</option>
@@ -328,7 +254,7 @@ export default function Page(){
           </div>
         </div>
 
-        {/* RIGHT: results & summary */}
+        {/* RIGHT */}
         <div className="md:col-span-2 space-y-4">
           <div className="card p-5">
             <h2 className="text-base font-semibold mb-3">Estimated value</h2>
@@ -341,25 +267,19 @@ export default function Page(){
                   <div className="text-xs">Used $/sqft</div>
                   <div className="text-lg font-semibold">{currency(res.ppsfUsed)}/sqft</div>
                 </div>
-
-                {/* Summary table */}
                 {summary && (
                   <div className="mt-2">
-                    <div className="text-sm font-medium mb-2">Your inputs</div>
                     <table className="summary-table">
                       <tbody>
                         {Object.entries(summary).map(([k,v])=>(
-                          <tr key={k}>
-                            <th>{k}</th>
-                            <td>{String(v ?? "")}</td>
-                          </tr>
+                          <tr key={k}><th>{k}</th><td>{String(v ?? "")}</td></tr>
                         ))}
                       </tbody>
                     </table>
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      <button type="button" className="btn-secondary" onClick={downloadSummary}>Download</button>
-                      <button type="button" className="btn-secondary" onClick={startNew}>Start New</button>
-                      <button type="button" className="btn-secondary" onClick={clearForm}>Reset</button>
+                      <button onClick={downloadSummary} className="btn-secondary">Download</button>
+                      <button onClick={startNew} className="btn-secondary">Start New</button>
+                      <button onClick={clearForm} className="btn-secondary">Reset</button>
                     </div>
                   </div>
                 )}
@@ -370,4 +290,4 @@ export default function Page(){
       </main>
     </>
   );
-          }
+                  }
