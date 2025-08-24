@@ -9,6 +9,7 @@ const toInt = (s) => {
   return Number.isFinite(n) ? n : undefined;
 };
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 export default function Page(){
   // Uncontrolled inputs via refs (prevents Android keyboard from closing)
@@ -107,6 +108,7 @@ export default function Page(){
         payload.renovations = {};
       }
 
+      // Save a human summary (for the right-side table)
       setSummary({
         Address: payload.address,
         "Living area (sqft)": payload.sqft ?? "",
@@ -121,13 +123,21 @@ export default function Page(){
         "Renovation level": renoRef.current?.value || "none"
       });
 
-      const r=await fetch("/api/estimate",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(payload)
-      });
-      const data=await r.json();
-      if(!r.ok) throw new Error(data?.error||"Failed");
+      // Do the API call + ensure loading screen shows at least 5 seconds
+      const api = (async ()=>{
+        const r=await fetch("/api/estimate",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        });
+        const data=await r.json();
+        if(!r.ok) throw new Error(data?.error||"Failed");
+        return data;
+      })();
+
+      // Minimum 5 seconds, but if API is slower, we'll wait for it
+      const data = await api;      // wait for estimate
+      await delay(5000);           // ensure 5s overlay
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
@@ -142,16 +152,17 @@ export default function Page(){
 
   return (
     <>
-      {/* Loading overlay */}
+      {/* Loading overlay: 5s green bubbly bar */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
-            <div className="mb-3 font-semibold">Crunching numbers…</div>
+            <div className="mb-3 font-semibold">Loading Home Value</div>
             <div className="progress-wrap">
-              <div className="progress-bar"></div>
-              <div className="unicorn">🦄</div>
+              <div className="progress-fill"></div>
             </div>
-            <div className="mt-3 text-sm" style={{color:"var(--muted)"}}>Estimating value and fetching comps…</div>
+            <div className="mt-3 text-sm" style={{color:"var(--muted)"}}>
+              Please wait while we analyze your home and nearby sales…
+            </div>
           </div>
         </div>
       )}
@@ -277,4 +288,4 @@ export default function Page(){
       </main>
     </>
   );
-                        }
+}
