@@ -1,0 +1,8 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+:root{color-scheme:light dark}
+body{background:#f9fafb;color:#0b0b0c}
+@media(prefers-color-scheme:dark){body{background:#0b0b0c;color:#f5f5f6}}
+.card{border-radius:16px;border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.9);box-shadow:0 1px 8px rgba(0,0,0,.04)}
+.input{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.8)}
+.label{font-size:14px;color:#6b7280}
+.badge{display:inline-flex;align-items:center;border:1px solid rgba(0,0,0,.15);padding:2px 10px;border-radius:999px;font-size:12px}
