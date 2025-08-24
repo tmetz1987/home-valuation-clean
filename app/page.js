@@ -29,14 +29,11 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // Address suggestions (pure DOM so Android keyboard stays open)
+  // Address suggestions (pure DOM to keep Android keyboard open)
   const sugBoxRef = useRef(null);
-
   useEffect(()=>{
     if (!addressRef.current || !sugBoxRef.current) return;
-
-    const input = addressRef.current;
-    const sugBox = sugBoxRef.current;
+    const input = addressRef.current, sugBox = sugBoxRef.current;
     let debounce;
 
     async function fetchSuggestions(q){
@@ -44,73 +41,57 @@ export default function Page(){
         const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" });
         const data = await r.json();
         const list = data?.predictions || [];
-
         sugBox.innerHTML = "";
         list.forEach(p=>{
           const btn = document.createElement("button");
           btn.textContent = p.description;
           btn.className = "suggestion-item";
           btn.type = "button";
-          btn.onmousedown = e=>e.preventDefault(); // keep keyboard up
+          btn.onmousedown = e=>e.preventDefault(); // keep keyboard
           btn.onclick = ()=>{
             input.value = /,\s*WA\b/i.test(p.description) ? p.description : `${p.description}, WA`;
-            sugBox.style.display="none";
-            input.focus();
+            sugBox.style.display="none"; input.focus();
           };
           sugBox.appendChild(btn);
         });
         sugBox.style.display = list.length ? "block" : "none";
-      }catch(_e){
-        sugBox.innerHTML = "";
-        sugBox.style.display = "none";
-      }
+      }catch{ sugBox.innerHTML=""; sugBox.style.display="none"; }
     }
-
     function onInput(){
       const q = input.value.trim();
       if (debounce) clearTimeout(debounce);
-      if (q.length < 3) { sugBox.innerHTML=""; sugBox.style.display="none"; return; }
+      if (q.length < 3){ sugBox.innerHTML=""; sugBox.style.display="none"; return; }
       debounce = setTimeout(()=>fetchSuggestions(q), 300);
     }
-
     function onBlur(){ setTimeout(()=>{ sugBox.style.display="none"; }, 120); }
     function onFocus(){ if (sugBox.innerHTML.trim()) sugBox.style.display="block"; }
 
     input.addEventListener("input", onInput);
     input.addEventListener("blur", onBlur);
     input.addEventListener("focus", onFocus);
-    return ()=>{
-      input.removeEventListener("input", onInput);
-      input.removeEventListener("blur", onBlur);
-      input.removeEventListener("focus", onFocus);
-    };
+    return ()=>{ input.removeEventListener("input", onInput); input.removeEventListener("blur", onBlur); input.removeEventListener("focus", onFocus); };
   },[]);
 
-  // Year dropdown 2025 → 1900
-  const YEARS = useMemo(
-    () => Array.from({length: 2025 - 1900 + 1}, (_,i)=>2025 - i),
-    []
-  );
+  // Year options 2025 → 1900
+  const YEARS = useMemo(() => Array.from({length:2025-1900+1},(_,i)=>2025-i), []);
 
   function clearForm(){
-    for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
-      if (r.current) r.current.value = "";
-    }
-    if (viewRef.current) viewRef.current.value = "none";
-    if (trendRef.current) trendRef.current.value = "flat";
-    if (renoRef.current) renoRef.current.value = "none";
+    for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) r.current && (r.current.value = "");
+    viewRef.current && (viewRef.current.value = "none");
+    trendRef.current && (trendRef.current.value = "flat");
+    renoRef.current && (renoRef.current.value = "none");
     setRes(null); setSummary(null); setErr(null);
   }
   const startNew = clearForm;
 
   function downloadSummary(){
     const data = JSON.stringify({ summary, result: res }, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
+    const blob = new Blob([data], { type:"application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = "valuation-summary.json";
-    document.body.appendChild(a); a.click();
-    a.remove(); URL.revokeObjectURL(url);
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function onEstimate(){
@@ -129,14 +110,9 @@ export default function Page(){
         marketTrend: trendRef.current?.value || "flat",
         renovations: { level: renoRef.current?.value || "none" }
       };
-
-      if(payload.renovations.level === "some") {
-        payload.renovations = { kitchen: true, bath: true };
-      } else if(payload.renovations.level === "major") {
-        payload.renovations = { kitchen: true, bath: true, roof: true, hvac: true, windows: true };
-      } else {
-        payload.renovations = {};
-      }
+      if(payload.renovations.level === "some") payload.renovations = { kitchen:true, bath:true };
+      else if(payload.renovations.level === "major") payload.renovations = { kitchen:true, bath:true, roof:true, hvac:true, windows:true };
+      else payload.renovations = {};
 
       setSummary({
         Address: payload.address,
@@ -152,21 +128,16 @@ export default function Page(){
         "Renovation level": renoRef.current?.value || "none"
       });
 
-      const r=await fetch("/api/estimate",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(payload)
-      });
-      const data=await r.json();
+      const r = await fetch("/api/estimate",{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
+      const data = await r.json();
       if(!r.ok) throw new Error(data?.error||"Failed");
-
-      await delay(6000);  // 6 seconds for the 3-bar loader
+      await delay(6000); // matches 3-bar loader rhythm
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
   }
 
-  const Field=({label,children})=>(
+  const Field = ({label,children}) => (
     <div className="space-y-1">
       <div className="label">{label}</div>
       {children}
@@ -175,19 +146,16 @@ export default function Page(){
 
   return (
     <>
-      {/* Loading overlay with 3 bars */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
-            <div className="mb-4 font-semibold">Loading Home Value</div>
-
+            <div className="mb-3 font-semibold">Loading Home Value</div>
             <div className="bars">
               <div className="bar bar1" style={{"--dur":"2.2s"}} />
               <div className="bar bar2" style={{"--dur":"3.1s"}} />
               <div className="bar bar3" style={{"--dur":"1.7s"}} />
             </div>
-
-            <div className="mt-4 text-sm" style={{color:"var(--muted)"}}>
+            <div className="mt-3" style={{color:"var(--muted)", fontSize:14}}>
               Analyzing nearby sales and features…
             </div>
           </div>
@@ -195,158 +163,154 @@ export default function Page(){
       )}
 
       {/* Sticky contact bar */}
-      <div className="sticky top-0 z-50 w-full backdrop-blur supports-[backdrop-filter]:bg-black/30">
-        <div className="mx-auto max-w-6xl p-4 md:p-6">
-          <div className="card p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div className="text-lg font-semibold">Realtor: Tyler Metzger</div>
-            <div className="text-sm opacity-80">
-              <span className="mr-4">C: 206.914.5044</span>
-              <a href="mailto:tyler.metzger@exprealty.com" className="underline">
-                tyler.metzger@exprealty.com
-              </a>
+      <div className="topbar">
+        <div className="mx-auto max-w-6xl" style={{padding:"12px 16px"}}>
+          <div className="card" style={{padding:"10px 14px", display:"flex", gap:"12px", alignItems:"center", justifyContent:"space-between"}}>
+            <div style={{fontWeight:600}}>Realtor: Tyler Metzger</div>
+            <div style={{fontSize:14, opacity:.9}}>
+              <span style={{marginRight:12}}>C: 206.914.5044</span>
+              <a href="mailto:tyler.metzger@exprealty.com">tyler.metzger@exprealty.com</a>
             </div>
           </div>
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl p-4 md:p-8 grid md:grid-cols-5 gap-6">
-        {/* LEFT: form */}
-        <div className="md:col-span-3 space-y-4">
-          <div className="card p-5 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h1 className="section-title">Property details</h1>
-              <span className="badge">WA-only Beta</span>
+      <main className="mx-auto max-w-6xl" style={{padding:"16px 16px 32px"}}>
+        <div className="card" style={{padding:16}}>
+          <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, flexWrap:"wrap", marginBottom:6}}>
+            <h1 className="section-title">Property details</h1>
+            <span className="badge">WA-only Beta</span>
+          </div>
+
+          {/* Address */}
+          <Field label="Address (Washington)">
+            <div className="relative">
+              <input
+                ref={addressRef}
+                className="input"
+                placeholder="Start typing your address…"
+                autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+              />
+              <div ref={sugBoxRef} className="suggestion-panel" style={{display:"none"}} />
             </div>
+          </Field>
 
-            {/* Address */}
-            <Field label="Address (Washington)">
-              <div className="relative">
-                <input
-                  ref={addressRef}
-                  className="input input-outline w-full"
-                  placeholder="Start typing your address…"
-                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
-                />
-                <div ref={sugBoxRef} className="suggestion-panel" style={{display:"none"}}></div>
-              </div>
-            </Field>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Grid 2 cols on >=sm */}
+          <div style={{display:"grid", gridTemplateColumns:"1fr", gap:12, marginTop:12}}>
+            <div style={{display:"grid", gridTemplateColumns:"1fr", gap:12}}>
               <Field label="Living area (sqft)">
-                <input ref={sqftRef} className="input input-outline" type="text" inputMode="numeric" placeholder="e.g. 1800" />
+                <input ref={sqftRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
               </Field>
               <Field label="Lot size (sqft)">
-                <input ref={lotRef} className="input input-outline" type="text" inputMode="numeric" placeholder="e.g. 6000" />
+                <input ref={lotRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
               </Field>
+            </div>
 
+            <div style={{display:"grid", gridTemplateColumns:"1fr", gap:12}}>
               <Field label="Bedrooms">
-                <select ref={bedsRef} className="input input-outline" defaultValue="">
+                <select ref={bedsRef} className="input" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="Bathrooms">
-                <select ref={bathsRef} className="input input-outline" defaultValue="">
+                <select ref={bathsRef} className="input" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
+            </div>
 
-              {/* Year built dropdown 2025→1900 */}
+            <div style={{display:"grid", gridTemplateColumns:"1fr", gap:12}}>
               <Field label="Year built">
-                <select ref={yearRef} className="input input-outline" defaultValue="">
+                <select ref={yearRef} className="input" defaultValue="">
                   <option value="" disabled>Select year…</option>
                   {YEARS.map(y => (<option key={y} value={y}>{y}</option>))}
                 </select>
               </Field>
-
               <Field label="Garage spots">
-                <select ref={garageRef} className="input input-outline" defaultValue="">
+                <select ref={garageRef} className="input" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div style={{display:"grid", gridTemplateColumns:"1fr", gap:12}}>
               <Field label="Condition (1–5)">
-                <select ref={conditionRef} className="input input-outline" defaultValue="3">
+                <select ref={conditionRef} className="input" defaultValue="3">
                   {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="View">
-                <select ref={viewRef} className="input input-outline" defaultValue="none">
+                <select ref={viewRef} className="input" defaultValue="none">
                   <option value="none">None</option>
                   <option value="city">City</option>
                   <option value="mountain">Mountain</option>
                   <option value="water">Water</option>
                 </select>
               </Field>
-              <Field label="Trend">
-                <select ref={trendRef} className="input input-outline" defaultValue="flat">
-                  <option value="declining">Declining</option>
-                  <option value="flat">Flat</option>
-                  <option value="rising">Rising</option>
-                </select>
-              </Field>
             </div>
 
+            <Field label="Trend">
+              <select ref={trendRef} className="input" defaultValue="flat">
+                <option value="declining">Declining</option>
+                <option value="flat">Flat</option>
+                <option value="rising">Rising</option>
+              </select>
+            </Field>
+
             <Field label="Renovation level">
-              <select ref={renoRef} className="input input-outline" defaultValue="none">
+              <select ref={renoRef} className="input" defaultValue="none">
                 <option value="none">None / original</option>
                 <option value="some">Some updates (kitchen/bath)</option>
                 <option value="major">Major remodel</option>
               </select>
             </Field>
-
-            <div className="flex gap-2 flex-wrap">
-              <button type="button" onClick={onEstimate} disabled={loading} className="btn">Estimate value</button>
-              <button type="button" onClick={startNew} className="btn-secondary">Start New</button>
-              <button type="button" onClick={clearForm} className="btn-secondary">Reset</button>
-            </div>
-            {err && <div style={{color:"#f87171",fontSize:12}}>{err}</div>}
           </div>
+
+          <div style={{display:"flex", gap:10, flexWrap:"wrap", marginTop:14}}>
+            <button type="button" onClick={onEstimate} disabled={loading} className="btn">Estimate value</button>
+            <button type="button" onClick={startNew} className="btn-secondary">Start New</button>
+            <button type="button" onClick={clearForm} className="btn-secondary">Reset</button>
+          </div>
+          {err && <div style={{color:"#f87171",fontSize:12, marginTop:8}}>{err}</div>}
         </div>
 
-        {/* RIGHT: results & summary */}
-        <div className="md:col-span-2 space-y-4">
-          <div className="card p-5">
-            <h2 className="text-base font-semibold mb-3">Estimated value</h2>
-            {!res && <p className="text-sm">Enter your address and details, then tap Estimate.</p>}
-            {res && (
-              <div className="space-y-3">
-                <div className="text-3xl font-bold">{currency(res.estimate)}</div>
-                <div className="text-sm">Range: {currency(res.low)} – {currency(res.high)}</div>
-                <div className="border rounded-xl p-3">
-                  <div className="text-xs">Used $/sqft</div>
-                  <div className="text-lg font-semibold">{currency(res.ppsfUsed)}/sqft</div>
-                </div>
-
-                {summary && (
-                  <div className="mt-2">
-                    <div className="text-sm font-medium mb-2">Your inputs</div>
-                    <table className="summary-table">
-                      <tbody>
-                        {Object.entries(summary).map(([k,v])=>(
-                          <tr key={k}>
-                            <th>{k}</th>
-                            <td>{String(v ?? "")}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="mt-3 flex gap-2 flex-wrap">
-                      <button type="button" className="btn-secondary" onClick={downloadSummary}>Download</button>
-                      <button type="button" className="btn-secondary" onClick={startNew}>Start New</button>
-                      <button type="button" className="btn-secondary" onClick={clearForm}>Reset</button>
-                    </div>
-                  </div>
-                )}
+        {/* Results */}
+        <div className="card" style={{padding:16, marginTop:16}}>
+          <div className="section-title" style={{marginBottom:8}}>Estimated value</div>
+          {!res && <p style={{fontSize:14, color:"var(--muted)", margin:0}}>Enter your address and details, then tap Estimate.</p>}
+          {res && (
+            <div style={{display:"grid", gap:12}}>
+              <div style={{fontWeight:800, fontSize:"1.8rem"}}>{currency(res.estimate)}</div>
+              <div style={{fontSize:14, color:"var(--muted)"}}>Range: {currency(res.low)} – {currency(res.high)}</div>
+              <div className="card" style={{padding:12}}>
+                <div style={{fontSize:12, color:"var(--muted)"}}>Used $/sqft</div>
+                <div style={{fontWeight:700, fontSize:"1.1rem"}}>{currency(res.ppsfUsed)}/sqft</div>
               </div>
-            )}
-          </div>
+
+              {summary && (
+                <div>
+                  <div style={{fontSize:14, fontWeight:600, marginBottom:8}}>Your inputs</div>
+                  <table className="summary-table">
+                    <tbody>
+                    {Object.entries(summary).map(([k,v])=>(
+                      <tr key={k}><th>{k}</th><td>{String(v ?? "")}</td></tr>
+                    ))}
+                    </tbody>
+                  </table>
+                  <div style={{display:"flex", gap:10, flexWrap:"wrap", marginTop:10}}>
+                    <button type="button" className="btn-secondary" onClick={downloadSummary}>Download</button>
+                    <button type="button" className="btn-secondary" onClick={startNew}>Start New</button>
+                    <button type="button" className="btn-secondary" onClick={clearForm}>Reset</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </>
   );
-                }
+            }
