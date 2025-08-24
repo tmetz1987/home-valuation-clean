@@ -29,55 +29,61 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // suggestions container (outside React)
+  // suggestions container (pure DOM, outside React state)
   const sugBoxRef = useRef(null);
 
   useEffect(()=>{
-    if (!addressRef.current) return;
+    if (!addressRef.current || !sugBoxRef.current) return;
 
     const input = addressRef.current;
     const sugBox = sugBoxRef.current;
-
     let debounce;
-    input.addEventListener("input", ()=>{
-      const q = input.value;
-      if (debounce) clearTimeout(debounce);
-      if (q.length < 3) { sugBox.innerHTML=""; return; }
 
-      debounce = setTimeout(async ()=>{
-        try{
-          const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`);
-          const data = await r.json();
-          sugBox.innerHTML = "";
-          (data?.predictions||[]).forEach(p=>{
-            const btn = document.createElement("button");
-            btn.textContent = p.description;
-            btn.className = "suggestion-item";
-            btn.type = "button";
-            btn.onmousedown = e=>e.preventDefault(); // keep keyboard
-            btn.onclick = ()=>{
-              input.value = p.description;
-              sugBox.innerHTML="";
-              input.focus();
-            };
-            sugBox.appendChild(btn);
-          });
-          if((data?.predictions||[]).length){
-            sugBox.style.display="block";
-          } else {
+    async function fetchSuggestions(q){
+      try{
+        const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+        const data = await r.json();
+        const list = data?.predictions || [];
+
+        sugBox.innerHTML = "";
+        list.forEach(p=>{
+          const btn = document.createElement("button");
+          btn.textContent = p.description;
+          btn.className = "suggestion-item";
+          btn.type = "button";
+          btn.onmousedown = e=>e.preventDefault(); // keep keyboard
+          btn.onclick = ()=>{
+            input.value = /,\s*WA\b/i.test(p.description) ? p.description : `${p.description}, WA`;
             sugBox.style.display="none";
-          }
-        }catch(e){}
-      }, 300);
-    });
+            input.focus();
+          };
+          sugBox.appendChild(btn);
+        });
+        sugBox.style.display = list.length ? "block" : "none";
+      }catch(_e){
+        sugBox.innerHTML = "";
+        sugBox.style.display = "none";
+      }
+    }
 
-    input.addEventListener("blur", ()=>{
-      setTimeout(()=>{ if(sugBox) sugBox.style.display="none"; },150);
-    });
-    input.addEventListener("focus", ()=>{
-      if (sugBox.innerHTML.trim()) sugBox.style.display="block";
-    });
+    function onInput(){
+      const q = input.value.trim();
+      if (debounce) clearTimeout(debounce);
+      if (q.length < 3) { sugBox.innerHTML=""; sugBox.style.display="none"; return; }
+      debounce = setTimeout(()=>fetchSuggestions(q), 300);
+    }
 
+    function onBlur(){ setTimeout(()=>{ sugBox.style.display="none"; }, 120); }
+    function onFocus(){ if (sugBox.innerHTML.trim()) sugBox.style.display="block"; }
+
+    input.addEventListener("input", onInput);
+    input.addEventListener("blur", onBlur);
+    input.addEventListener("focus", onFocus);
+    return ()=>{
+      input.removeEventListener("input", onInput);
+      input.removeEventListener("blur", onBlur);
+      input.removeEventListener("focus", onFocus);
+    };
   },[]);
 
   function clearForm(){
@@ -89,8 +95,7 @@ export default function Page(){
     if (renoRef.current) renoRef.current.value = "none";
     setRes(null); setSummary(null); setErr(null);
   }
-
-  function startNew(){ clearForm(); }
+  const startNew = clearForm;
 
   function downloadSummary(){
     const data = JSON.stringify({ summary, result: res }, null, 2);
@@ -127,7 +132,19 @@ export default function Page(){
         payload.renovations = {};
       }
 
-      setSummary(payload);
+      setSummary({
+        Address: payload.address,
+        "Living area (sqft)": payload.sqft ?? "",
+        "Lot size (sqft)": payload.lotSqft ?? "",
+        Bedrooms: payload.beds ?? "",
+        Bathrooms: payload.baths ?? "",
+        "Year built": payload.yearBuilt ?? "",
+        "Garage spots": payload.garageSpots ?? "",
+        "Condition (1–5)": payload.condition ?? "",
+        View: payload.view,
+        Trend: payload.marketTrend,
+        "Renovation level": renoRef.current?.value || "none"
+      });
 
       const r=await fetch("/api/estimate",{
         method:"POST",
@@ -137,7 +154,7 @@ export default function Page(){
       const data=await r.json();
       if(!r.ok) throw new Error(data?.error||"Failed");
 
-      await delay(5000);
+      await delay(5000);  // keep the loading screen for 5s
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
@@ -172,6 +189,7 @@ export default function Page(){
               <span className="badge">WA-only Beta</span>
             </div>
 
+            {/* Address (pure DOM autocomplete) */}
             <Field label="Address (Washington)">
               <div className="relative">
                 <input
@@ -184,6 +202,7 @@ export default function Page(){
               </div>
             </Field>
 
+            {/* Inputs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
                 <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" />
@@ -254,7 +273,7 @@ export default function Page(){
           </div>
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT: results & summary */}
         <div className="md:col-span-2 space-y-4">
           <div className="card p-5">
             <h2 className="text-base font-semibold mb-3">Estimated value</h2>
@@ -290,4 +309,4 @@ export default function Page(){
       </main>
     </>
   );
-                  }
+                                   }
