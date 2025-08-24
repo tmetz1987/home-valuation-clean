@@ -23,13 +23,11 @@ export default function Page() {
   const viewRef = useRef(null);
   const trendRef = useRef(null);
   const renoRef = useRef(null);
-  const zillowRef = useRef(null);
-  const redfinRef = useRef(null);
 
   /* UI state */
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);        // model result
-  const [finalValue, setFinalValue] = useState(null); // shown value (avg ext if present)
+  const [result, setResult] = useState(null);         // model result from /api/estimate
+  const [finalValue, setFinalValue] = useState(null); // what we display (external avg if available)
   const [errorMsg, setErrorMsg] = useState("");
   const [summary, setSummary] = useState(null);
 
@@ -40,7 +38,6 @@ export default function Page() {
   const setCompleteOnly = (ref, ok) => {
     const el = ref?.current; if (!el) return;
     if (ok) el.classList.add("is-complete"); else el.classList.remove("is-complete");
-    // IMPORTANT: do NOT touch is-error here (no red before submit)
   };
   const setErrorFlag = (ref, err) => {
     const el = ref?.current; if (!el) return;
@@ -105,7 +102,7 @@ export default function Page() {
     };
   }, []);
 
-  /* ---------- live “complete” feedback (no red) ---------- */
+  /* ---------- live “complete” feedback (no red before submit) ---------- */
   useEffect(() => {
     const asCompleteNumeric = (ref, required = true) => {
       const v = ref.current?.value ?? "";
@@ -125,11 +122,8 @@ export default function Page() {
       [viewRef,   () => asCompleteSelect(viewRef)],
       [trendRef,  () => asCompleteSelect(trendRef)],
       [renoRef,   () => asCompleteSelect(renoRef)],
-      [zillowRef, () => asCompleteNumeric(zillowRef, false)],
-      [redfinRef, () => asCompleteNumeric(redfinRef, false)],
     ];
 
-    // Trigger on blur (and later on submit we can add red if needed)
     const unsubs = pairs.map(([ref, fn]) => {
       const el = ref.current; if (!el) return () => {};
       const h = () => fn();
@@ -148,17 +142,17 @@ export default function Page() {
     setErrorMsg(""); setFinalValue(null); setResult(null);
 
     // compute validity (add red only here)
-    const addrOK = (addressRef.current?.value || "").trim().length >= 5;
-    const sqftOK = /^\d{1,9}$/.test(String(sqftRef.current?.value ?? "").trim());
-    const bedsOK = String(bedsRef.current?.value ?? "") !== "";
+    const addrOK  = (addressRef.current?.value || "").trim().length >= 5;
+    const sqftOK  = /^\d{1,9}$/.test(String(sqftRef.current?.value ?? "").trim());
+    const bedsOK  = String(bedsRef.current?.value  ?? "") !== "";
     const bathsOK = String(bathsRef.current?.value ?? "") !== "";
-    const yearOK = String(yearRef.current?.value ?? "") !== "";
+    const yearOK  = String(yearRef.current?.value  ?? "") !== "";
 
     setErrorFlag(addressRef, !addrOK);
-    setErrorFlag(sqftRef, !sqftOK);
-    setErrorFlag(bedsRef, !bedsOK);
-    setErrorFlag(bathsRef, !bathsOK);
-    setErrorFlag(yearRef, !yearOK);
+    setErrorFlag(sqftRef,   !sqftOK);
+    setErrorFlag(bedsRef,   !bedsOK);
+    setErrorFlag(bathsRef,  !bathsOK);
+    setErrorFlag(yearRef,   !yearOK);
 
     const ok = addrOK && sqftOK && bedsOK && bathsOK && yearOK;
     if (!ok) { setErrorMsg("Please complete the highlighted fields."); return; }
@@ -195,11 +189,9 @@ export default function Page() {
         View: payload.view,
         Trend: payload.marketTrend,
         "Renovation level": renoRef.current?.value || "none",
-        "Zestimate (optional)": zillowRef.current?.value || "",
-        "Redfin estimate (optional)": redfinRef.current?.value || "",
       });
 
-      // call model
+      // 1) call your internal model
       const r = await fetch("/api/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -207,19 +199,22 @@ export default function Page() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Estimate failed");
+      setResult(data);
 
-      // 6s loader
+      // 2) call external estimates (if configured server-side)
+      //    This route returns { zestimate, redfinEstimate, average } or nulls if not configured
+      let externalAvg = null;
+      try {
+        const er = await fetch(`/api/external?address=${encodeURIComponent(payload.address)}`);
+        if (er.ok) {
+          const ext = await er.json();
+          if (ext?.average) externalAvg = toInt(ext.average);
+        }
+      } catch {}
+
+      // show loader for 6 seconds
       await delay(6000);
 
-      // external average if provided
-      const z = toInt(zillowRef.current?.value);
-      const rf = toInt(redfinRef.current?.value);
-      let externalAvg = null;
-      if (z && rf) externalAvg = Math.round((z + rf) / 2);
-      else if (z) externalAvg = z;
-      else if (rf) externalAvg = rf;
-
-      setResult(data);
       setFinalValue(externalAvg ?? data.estimate);
     } catch (e) {
       setErrorMsg(e.message || "Something went wrong");
@@ -237,8 +232,7 @@ export default function Page() {
 
   const resetAll = () => {
     [
-      addressRef,sqftRef,lotRef,bedsRef,bathsRef,yearRef,garageRef,conditionRef,viewRef,trendRef,renoRef,
-      zillowRef, redfinRef
+      addressRef,sqftRef,lotRef,bedsRef,bathsRef,yearRef,garageRef,conditionRef,viewRef,trendRef,renoRef
     ].forEach((r) => {
       if (!r.current) return;
       r.current.value = "";
@@ -262,13 +256,12 @@ export default function Page() {
         </div>
       )}
 
-      {/* Sticky contact bar */}
+      {/* Sticky contact bar – email on its own line */}
       <div className="topbar">
         <div className="mx-auto max-w-6xl" style={{ padding: "10px 16px" }}>
           <div className="card topcard">
-            <div className="top-left">Realtor: <strong>Tyler Metzger</strong></div>
-            <div className="top-right">
-              <span className="nowrap">C:&nbsp;206.914.5044</span>
+            <div className="top-left">
+              <div className="nowrap">Realtor: <strong>Tyler Metzger</strong> &nbsp;&nbsp; C: 206.914.5044</div>
               <a className="clean-link email-clip" href="mailto:tyler.metzger@exprealty.com">
                 tyler.metzger@exprealty.com
               </a>
@@ -370,16 +363,6 @@ export default function Page() {
             </Field>
           </div>
 
-          {/* Optional external estimates */}
-          <div className="grid-col">
-            <Field label="Zestimate (optional)">
-              <input ref={zillowRef} className="input" type="text" inputMode="numeric" placeholder="Paste Zillow number" />
-            </Field>
-            <Field label="Redfin estimate (optional)">
-              <input ref={redfinRef} className="input" type="text" inputMode="numeric" placeholder="Paste Redfin number" />
-            </Field>
-          </div>
-
           <div className="btn-row">
             <button type="button" onClick={onEstimate} disabled={loading} className="btn">Estimate value</button>
             <button type="button" onClick={resetAll} className="btn-secondary">Reset</button>
@@ -411,4 +394,4 @@ export default function Page() {
       </main>
     </>
   );
-        }
+                  }
