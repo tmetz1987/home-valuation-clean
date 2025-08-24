@@ -16,13 +16,11 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .section-title{font-weight:700;font-size:1.05rem;margin:0}
 .label{font-size:.9rem;font-weight:600}
 
-/* Inputs (no red until submit) */
+/* Inputs (green complete, red only after submit) */
 .input{width:100%;padding:12px 14px;border-radius:12px;background:transparent;color:var(--text);border:1px solid var(--border);transition:border-color .15s, box-shadow .15s}
 .input::placeholder{color:#7f8697}
 .input:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent)}
-/* complete = pastel green outline */
 .input.is-complete{border-color:color-mix(in srgb, var(--ok) 70%, #000 0%); box-shadow:0 0 0 2px color-mix(in srgb, var(--ok) 30%, transparent)}
-/* error appears only after submit */
 .input.is-error{border-color:var(--err); box-shadow:0 0 0 2px color-mix(in srgb, var(--err) 35%, transparent)}
 select.input{appearance:none;background-image:none}
 
@@ -37,17 +35,16 @@ select.input{appearance:none;background-image:none}
 .suggestion-item{width:100%;text-align:left;padding:10px 12px;border:none;background:transparent;color:var(--text)}
 .suggestion-item:hover{background:rgba(255,255,255,.06)}
 
-/* Clean top bar */
+/* Sticky top bar (email on its own line) */
 .topbar{position:sticky;top:0;z-index:60;backdrop-filter:blur(6px);background:color-mix(in srgb, var(--bg) 70%, transparent);border-bottom:1px solid var(--border)}
-.topcard{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px}
-.top-left{font-weight:600}
-.top-right{display:flex;align-items:center;gap:12px;min-width:0}
+.topcard{display:flex;align-items:center;gap:12px;padding:10px 14px}
+.top-left{display:flex;flex-direction:column;gap:6px}
 .nowrap{white-space:nowrap}
 .clean-link{color:var(--link);text-decoration:none}
 .clean-link:hover{text-decoration:underline}
-.email-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+.email-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80vw}
 
-/* Simple layout helpers */
+/* Layout helpers */
 .header-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .grid-col{display:grid;gap:12px;margin-top:12px}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
