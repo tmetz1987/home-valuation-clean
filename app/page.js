@@ -26,15 +26,14 @@ export default function Page() {
 
   /* UI state */
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);         // model result from /api/estimate
-  const [finalValue, setFinalValue] = useState(null); // what we display (external avg if available)
+  const [result, setResult] = useState(null);         // model result
+  const [finalValue, setFinalValue] = useState(null); // display value (external avg if available)
   const [errorMsg, setErrorMsg] = useState("");
-  const [summary, setSummary] = useState(null);
+  const [summary, setSummary] = useState(null);       // <— we’ll render this below
 
-  /* suggestions container (pure DOM so Android keyboard stays up) */
   const sugBoxRef = useRef(null);
 
-  /* ---------- class helpers for styling ---------- */
+  /* ---------- class helpers ---------- */
   const setCompleteOnly = (ref, ok) => {
     const el = ref?.current; if (!el) return;
     if (ok) el.classList.add("is-complete"); else el.classList.remove("is-complete");
@@ -81,7 +80,7 @@ export default function Page() {
 
     function onInput() {
       setErrorMsg("");
-      markComplete();                     // green if looks filled
+      markComplete();
       const q = input.value.trim();
       if (debounce) clearTimeout(debounce);
       if (q.length < 3) { sug.innerHTML = ""; sug.style.display = "none"; return; }
@@ -141,7 +140,7 @@ export default function Page() {
   async function onEstimate() {
     setErrorMsg(""); setFinalValue(null); setResult(null);
 
-    // compute validity (add red only here)
+    // validity (add red only here)
     const addrOK  = (addressRef.current?.value || "").trim().length >= 5;
     const sqftOK  = /^\d{1,9}$/.test(String(sqftRef.current?.value ?? "").trim());
     const bedsOK  = String(bedsRef.current?.value  ?? "") !== "";
@@ -191,7 +190,7 @@ export default function Page() {
         "Renovation level": renoRef.current?.value || "none",
       });
 
-      // 1) call your internal model
+      // 1) model estimate
       const r = await fetch("/api/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,18 +200,17 @@ export default function Page() {
       if (!r.ok) throw new Error(data?.error || "Estimate failed");
       setResult(data);
 
-      // 2) call external estimates (if configured server-side)
-      //    This route returns { zestimate, redfinEstimate, average } or nulls if not configured
+      // 2) external (stub) — returns nulls unless you wire a provider later
       let externalAvg = null;
       try {
         const er = await fetch(`/api/external?address=${encodeURIComponent(payload.address)}`);
         if (er.ok) {
           const ext = await er.json();
-          if (ext?.average) externalAvg = toInt(ext.average);
+          if (ext?.average) externalAvg = parseInt(ext.average, 10);
         }
       } catch {}
 
-      // show loader for 6 seconds
+      // loader 6s
       await delay(6000);
 
       setFinalValue(externalAvg ?? data.estimate);
@@ -243,7 +241,7 @@ export default function Page() {
 
   return (
     <>
-      {/* Single green loading bar */}
+      {/* Loader */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
@@ -256,7 +254,7 @@ export default function Page() {
         </div>
       )}
 
-      {/* Sticky contact bar – email on its own line */}
+      {/* Sticky contact bar (email on its own line) */}
       <div className="topbar">
         <div className="mx-auto max-w-6xl" style={{ padding: "10px 16px" }}>
           <div className="card topcard">
@@ -375,10 +373,10 @@ export default function Page() {
           <div className="section-title" style={{ marginBottom: 8 }}>Estimated value</div>
           {!finalValue && <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>Enter details and tap Estimate.</p>}
           {finalValue && (
-            <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 16 }}>
               <div style={{ fontWeight: 800, fontSize: "1.8rem" }}>{currency(finalValue)}</div>
 
-              {/* Context box */}
+              {/* Model context */}
               {result && (
                 <div className="card" style={{ padding: 12 }}>
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>Model estimate (context)</div>
@@ -388,10 +386,27 @@ export default function Page() {
                   </div>
                 </div>
               )}
+
+              {/* NEW: Details you entered */}
+              {summary && (
+                <div className="card" style={{ padding: 12 }}>
+                  <div className="section-title" style={{ marginBottom: 8 }}>Details you entered</div>
+                  <dl className="kv">
+                    {Object.entries(summary).map(([k, v]) => (
+                      <Fragment key={k}>
+                        <dt>{k}</dt>
+                        <dd>{v === "" || v == null ? "—" : v}</dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                </div>
+              )}
             </div>
           )}
         </div>
       </main>
     </>
   );
-                  }
+}
+
+import { Fragment } from "react";
