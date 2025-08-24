@@ -2,26 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* -------- Theme tokens -------- */
+/* -------- Theme tokens (pastel) -------- */
 :root {
   --bg: #0b0b0c;
   --fg: #f5f5f6;
   --card: #141416;
-  --border: rgba(255,255,255,.08);
-  --muted: #a1a1aa;
-  --accent: #60a5fa;
-  --accent-2: #2563eb;
+  --border: rgba(255,255,255,.10);
+  --muted: #b1b1bb;
+
+  --accent: #93c5fd;   /* pastel blue */
+  --accent-2: #60a5fa; /* blue-400 */
+  --pastel-fill: rgba(147,197,253,.14); /* light blue fill */
+  --pastel-outline: rgba(147,197,253,.35);
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f9fafb;
+    --bg: #f8fafc;
     --fg: #0b0b0c;
-    --card: #ffffff;
+    --card: #ffffffcc;
     --border: rgba(0,0,0,.08);
     --muted: #6b7280;
-    --accent: #3b82f6;
-    --accent-2: #1d4ed8;
+
+    --accent: #93c5fd;
+    --accent-2: #3b82f6;
+    --pastel-fill: rgba(147,197,253,.22);
+    --pastel-outline: rgba(147,197,253,.45);
   }
 }
 
@@ -33,6 +39,7 @@ html, body { background: var(--bg); color: var(--fg); }
   border: 1px solid var(--border);
   background: var(--card);
   box-shadow: 0 2px 12px rgba(0,0,0,.22);
+  backdrop-filter: blur(6px);
 }
 
 /* Inputs / selects / textareas */
@@ -46,10 +53,22 @@ html, body { background: var(--bg); color: var(--fg); }
   outline: none;
 }
 .input:focus{
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
-  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+  border-color: var(--pastel-outline);
+  box-shadow:0 0 0 4px var(--pastel-fill);
 }
 .input::placeholder{ color: var(--muted); }
+
+/* Pastel variants */
+.pastel-input{
+  background: linear-gradient(0deg, var(--pastel-fill), var(--pastel-fill)) padding-box,
+              linear-gradient(var(--pastel-outline), var(--pastel-outline)) border-box;
+  border: 1px solid transparent;
+}
+.pastel-select{
+  background: linear-gradient(0deg, var(--pastel-fill), var(--pastel-fill)) padding-box,
+              linear-gradient(var(--pastel-outline), var(--pastel-outline)) border-box;
+  border: 1px solid transparent;
+}
 
 /* Labels & small text */
 .label{ font-size:14px; color: var(--muted); }
@@ -68,18 +87,18 @@ html, body { background: var(--bg); color: var(--fg); }
   border:0; border-radius:12px; padding:12px 14px;
   font-weight:700;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color:#fff;
+  color:#0b0b0c;
 }
 .btn[disabled]{ opacity:.6; }
 .btn-secondary{
-  width:auto; border:1px solid var(--border); border-radius:10px; padding:10px 12px;
-  background: color-mix(in oklab, var(--card) 95%, var(--bg)); color: var(--fg);
+  width:auto; border:1px solid var(--pastel-outline); border-radius:10px; padding:10px 12px;
+  background: var(--pastel-fill); color: var(--fg);
 }
 
 /* Section title */
 .section-title{ font-size:20px; font-weight:700; opacity:.95; }
 
-/* -------- Loading overlay (no unicorn) -------- */
+/* Loading overlay (green bubbly) */
 .loading-overlay{
   position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
   background:rgba(0,0,0,.6); backdrop-filter: blur(2px); z-index:50;
@@ -88,11 +107,10 @@ html, body { background: var(--bg); color: var(--fg); }
   width:min(520px, 92vw); padding:18px; border-radius:16px; background:var(--card); border:1px solid var(--border);
   box-shadow: 0 10px 30px rgba(0,0,0,.35);
 }
-
 /* Green bubbly progress */
 .progress-wrap{
   position:relative; height:22px; border-radius:999px; overflow:hidden;
-  background: rgba(34,197,94,.15); /* light green track */
+  background: rgba(34,197,94,.15);
   border:1px solid rgba(34,197,94,.25);
 }
 .progress-fill{
@@ -108,11 +126,19 @@ html, body { background: var(--bg); color: var(--fg); }
 @keyframes fill5s { from{ width:0% } to{ width:100% } }
 @keyframes bubbles { from{ background-position: 0 0, 0 0 } to{ background-position: 28px 0, 0 0 } }
 
-/* Summary table */
-.summary-table{
-  width:100%; border-collapse: collapse; font-size:14px;
+/* Suggestions dropdown */
+.suggestion-panel{
+  position:absolute; top:100%; left:0; right:0; z-index:10;
+  background: var(--card);
+  border: 1px solid var(--pastel-outline);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.30);
+  margin-top: 6px;
+  overflow: hidden;
 }
-.summary-table th, .summary-table td{
-  padding:8px 10px; border-bottom:1px solid var(--border);
+.suggestion-item{
+  display:block; width:100%; text-align:left;
+  padding:10px 12px; color:var(--fg);
+  border:0; background:transparent; cursor:pointer;
 }
-.summary-table th{ text-align:left; color:var(--muted); font-weight:600; }
+.suggestion-item:hover{ background: var(--pastel-fill); }
