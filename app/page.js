@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 function currency(n){
   return n.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0});
@@ -17,7 +17,7 @@ export default function Page(){
   const lotRef = useRef(null);
   const bedsRef = useRef(null);
   const bathsRef = useRef(null);
-  const yearRef = useRef(null);
+  const yearRef = useRef(null);      // scrolling year dropdown
   const garageRef = useRef(null);
   const conditionRef = useRef(null);
   const viewRef = useRef(null);
@@ -29,7 +29,7 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // suggestions container (pure DOM, outside React state)
+  // ===== Address suggestions (pure DOM so Android keyboard stays open) =====
   const sugBoxRef = useRef(null);
 
   useEffect(()=>{
@@ -51,7 +51,7 @@ export default function Page(){
           btn.textContent = p.description;
           btn.className = "suggestion-item";
           btn.type = "button";
-          btn.onmousedown = e=>e.preventDefault(); // keep keyboard
+          btn.onmousedown = e=>e.preventDefault(); // keep keyboard up
           btn.onclick = ()=>{
             input.value = /,\s*WA\b/i.test(p.description) ? p.description : `${p.description}, WA`;
             sugBox.style.display="none";
@@ -85,6 +85,12 @@ export default function Page(){
       input.removeEventListener("focus", onFocus);
     };
   },[]);
+
+  // ===== Year Built dropdown: 2025 down to 1900 =====
+  const YEARS = useMemo(
+    () => Array.from({length: 2025 - 1900 + 1}, (_,i)=>2025 - i),
+    []
+  );
 
   function clearForm(){
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
@@ -154,7 +160,7 @@ export default function Page(){
       const data=await r.json();
       if(!r.ok) throw new Error(data?.error||"Failed");
 
-      await delay(5000);  // keep the loading screen for 5s
+      await delay(5000);  // full-screen loading for 5s
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
@@ -169,6 +175,7 @@ export default function Page(){
 
   return (
     <>
+      {/* Loading overlay */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
@@ -181,7 +188,23 @@ export default function Page(){
         </div>
       )}
 
+      {/* ===== Sticky contact bar at the very top ===== */}
+      <div className="sticky top-0 z-50 w-full backdrop-blur supports-[backdrop-filter]:bg-black/30">
+        <div className="mx-auto max-w-6xl p-4 md:p-6">
+          <div className="card p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="text-lg font-semibold">Realtor: Tyler Metzger</div>
+            <div className="text-sm opacity-80">
+              <span className="mr-4">C: 206.914.5044</span>
+              <a href="mailto:tyler.metzger@exprealty.com" className="underline">
+                tyler.metzger@exprealty.com
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="mx-auto max-w-6xl p-4 md:p-8 grid md:grid-cols-5 gap-6">
+        {/* LEFT: form */}
         <div className="md:col-span-3 space-y-4">
           <div className="card p-5 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -202,41 +225,50 @@ export default function Page(){
               </div>
             </Field>
 
-            {/* Inputs */}
+            {/* 1 column on phones, 2 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
-                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" />
+                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
               </Field>
               <Field label="Lot size (sqft)">
-                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" />
+                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
               </Field>
+
+              {/* Dropdowns */}
               <Field label="Bedrooms">
                 <select ref={bedsRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:10},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
+                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="Bathrooms">
                 <select ref={bathsRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:10},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
+                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
+
+              {/* Year Built dropdown (2025 → 1900) */}
               <Field label="Year built">
-                <input ref={yearRef} className="input pastel-input" type="text" inputMode="numeric" />
+                <select ref={yearRef} className="input pastel-select" defaultValue="">
+                  <option value="" disabled>Select year…</option>
+                  {YEARS.map(y => (<option key={y} value={y}>{y}</option>))}
+                </select>
               </Field>
+
               <Field label="Garage spots">
                 <select ref={garageRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
-                  {Array.from({length:7},(_,i)=>i).map(n=><option key={n}>{n}</option>)}
+                  {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
             </div>
 
+            {/* 1 col on phones, 3 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Condition (1–5)">
                 <select ref={conditionRef} className="input pastel-select" defaultValue="3">
-                  {[1,2,3,4,5].map(n=><option key={n}>{n}</option>)}
+                  {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="View">
@@ -286,19 +318,24 @@ export default function Page(){
                   <div className="text-xs">Used $/sqft</div>
                   <div className="text-lg font-semibold">{currency(res.ppsfUsed)}/sqft</div>
                 </div>
+
                 {summary && (
                   <div className="mt-2">
+                    <div className="text-sm font-medium mb-2">Your inputs</div>
                     <table className="summary-table">
                       <tbody>
                         {Object.entries(summary).map(([k,v])=>(
-                          <tr key={k}><th>{k}</th><td>{String(v ?? "")}</td></tr>
+                          <tr key={k}>
+                            <th>{k}</th>
+                            <td>{String(v ?? "")}</td>
+                          </tr>
                         ))}
                       </tbody>
                     </table>
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      <button onClick={downloadSummary} className="btn-secondary">Download</button>
-                      <button onClick={startNew} className="btn-secondary">Start New</button>
-                      <button onClick={clearForm} className="btn-secondary">Reset</button>
+                      <button type="button" className="btn-secondary" onClick={downloadSummary}>Download</button>
+                      <button type="button" className="btn-secondary" onClick={startNew}>Start New</button>
+                      <button type="button" className="btn-secondary" onClick={clearForm}>Reset</button>
                     </div>
                   </div>
                 )}
@@ -309,4 +346,4 @@ export default function Page(){
       </main>
     </>
   );
-                                   }
+                    }
