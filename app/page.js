@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 function currency(n){
   return n.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0});
@@ -30,36 +30,9 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // Address autocomplete
-  const [addrQuery, setAddrQuery] = useState("");
+  // address suggestions (do NOT bind input value to state)
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
-  const debRef = useRef(null);
-
-  useEffect(()=>{
-    if (debRef.current) clearTimeout(debRef.current);
-    if (!addrQuery || addrQuery.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-    debRef.current = setTimeout(async ()=>{
-      try{
-        const r = await fetch(`/api/places?q=${encodeURIComponent(addrQuery)}`, { cache: "no-store" });
-        const data = await r.json();
-        if (r.ok) {
-          setSuggestions(data?.predictions || []);
-          setShowSug(true);
-        }
-      }catch(_e){ /* ignore */ }
-    }, 250);
-    return () => debRef.current && clearTimeout(debRef.current);
-  }, [addrQuery]);
-
-  function pickSuggestion(desc){
-    if (addressRef.current) addressRef.current.value = desc;
-    setShowSug(false);
-    setSuggestions([]);
-  }
 
   function clearForm(){
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
@@ -72,7 +45,7 @@ export default function Page(){
   }
 
   function startNew(){
-    // keep address so they can tweak; clear rest
+    // keep address; clear the rest
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
       if (r.current) r.current.value = "";
     }
@@ -109,7 +82,7 @@ export default function Page(){
         renovations: { level: renoRef.current?.value || "none" }
       };
 
-      // Map simple renovation level → detailed flags
+      // map simple renovation level → detailed flags the estimator understands
       if(payload.renovations.level === "some") {
         payload.renovations = { kitchen: true, bath: true };
       } else if(payload.renovations.level === "major") {
@@ -118,7 +91,7 @@ export default function Page(){
         payload.renovations = {};
       }
 
-      // Save a human summary
+      // Save human summary for the table
       setSummary({
         Address: payload.address,
         "Living area (sqft)": payload.sqft ?? "",
@@ -133,7 +106,7 @@ export default function Page(){
         "Renovation level": renoRef.current?.value || "none"
       });
 
-      // Do API + ensure loading screen shows ≥ 5s
+      // Do API; ensure loading screen shows at least 5s
       const api = (async ()=>{
         const r=await fetch("/api/estimate",{
           method:"POST",
@@ -185,14 +158,27 @@ export default function Page(){
               <span className="badge">WA-only Beta</span>
             </div>
 
+            {/* Address (uncontrolled + suggestions via onInput; keeps keyboard open) */}
             <Field label="Address (Washington)">
               <div className="relative">
                 <input
                   ref={addressRef}
                   className="input flex-1 pastel-input"
                   placeholder="Start typing your address…"
-                  onChange={(e)=>setAddrQuery(e.target.value)}
-                  onFocus={()=>{ if(suggestions.length) setShowSug(true); }}
+                  onInput={(e)=>{
+                    const q = e.target.value || "";
+                    if (q.length < 3) {
+                      setSuggestions([]); setShowSug(false); return;
+                    }
+                    fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" })
+                      .then(r=>r.json())
+                      .then(data=>{
+                        setSuggestions(data?.predictions || []);
+                        setShowSug(true);
+                      })
+                      .catch(()=>{});
+                  }}
+                  onFocus={()=>{ if (suggestions.length) setShowSug(true); }}
                   autoComplete="street-address"
                 />
                 {showSug && suggestions.length>0 && (
@@ -202,8 +188,11 @@ export default function Page(){
                         type="button"
                         key={p.place_id}
                         className="suggestion-item"
-                        onMouseDown={(e)=>e.preventDefault()}
-                        onClick={()=>pickSuggestion(p.description)}
+                        onMouseDown={(e)=>e.preventDefault()} // prevent blur collapsing keyboard
+                        onClick={()=>{
+                          if (addressRef.current) addressRef.current.value = p.description;
+                          setShowSug(false);
+                        }}
                       >
                         {p.description}
                       </button>
@@ -222,7 +211,7 @@ export default function Page(){
                 <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
               </Field>
 
-              {/* Dropdowns you asked for */}
+              {/* Dropdowns */}
               <Field label="Bedrooms">
                 <select ref={bedsRef} className="input pastel-select" defaultValue="">
                   <option value="" disabled>Choose…</option>
@@ -302,6 +291,7 @@ export default function Page(){
                   <div className="text-lg font-semibold">{currency(res.ppsfUsed)}/sqft</div>
                 </div>
 
+                {/* Summary table */}
                 {summary && (
                   <div className="mt-2">
                     <div className="text-sm font-medium mb-2">Your inputs</div>
@@ -329,4 +319,4 @@ export default function Page(){
       </main>
     </>
   );
-                                   }
+                  }
