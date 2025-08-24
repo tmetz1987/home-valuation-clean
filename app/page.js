@@ -17,7 +17,7 @@ export default function Page(){
   const lotRef = useRef(null);
   const bedsRef = useRef(null);
   const bathsRef = useRef(null);
-  const yearRef = useRef(null);      // scrolling year dropdown
+  const yearRef = useRef(null);
   const garageRef = useRef(null);
   const conditionRef = useRef(null);
   const viewRef = useRef(null);
@@ -29,7 +29,7 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // ===== Address suggestions (pure DOM so Android keyboard stays open) =====
+  // Address suggestions (pure DOM so Android keyboard stays open)
   const sugBoxRef = useRef(null);
 
   useEffect(()=>{
@@ -86,7 +86,7 @@ export default function Page(){
     };
   },[]);
 
-  // ===== Year Built dropdown: 2025 down to 1900 =====
+  // Year dropdown 2025 → 1900
   const YEARS = useMemo(
     () => Array.from({length: 2025 - 1900 + 1}, (_,i)=>2025 - i),
     []
@@ -160,7 +160,7 @@ export default function Page(){
       const data=await r.json();
       if(!r.ok) throw new Error(data?.error||"Failed");
 
-      await delay(5000);  // full-screen loading for 5s
+      await delay(6000);  // 6 seconds for the 3-bar loader
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
@@ -175,20 +175,26 @@ export default function Page(){
 
   return (
     <>
-      {/* Loading overlay */}
+      {/* Loading overlay with 3 bars */}
       {loading && (
         <div className="loading-overlay">
           <div className="loader-card">
-            <div className="mb-3 font-semibold">Loading Home Value</div>
-            <div className="progress-wrap"><div className="progress-fill"></div></div>
-            <div className="mt-3 text-sm" style={{color:"var(--muted)"}}>
-              Please wait while we analyze your home and nearby sales…
+            <div className="mb-4 font-semibold">Loading Home Value</div>
+
+            <div className="bars">
+              <div className="bar bar1" style={{"--dur":"2.2s"}} />
+              <div className="bar bar2" style={{"--dur":"3.1s"}} />
+              <div className="bar bar3" style={{"--dur":"1.7s"}} />
+            </div>
+
+            <div className="mt-4 text-sm" style={{color:"var(--muted)"}}>
+              Analyzing nearby sales and features…
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== Sticky contact bar at the very top ===== */}
+      {/* Sticky contact bar */}
       <div className="sticky top-0 z-50 w-full backdrop-blur supports-[backdrop-filter]:bg-black/30">
         <div className="mx-auto max-w-6xl p-4 md:p-6">
           <div className="card p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
@@ -212,12 +218,12 @@ export default function Page(){
               <span className="badge">WA-only Beta</span>
             </div>
 
-            {/* Address (pure DOM autocomplete) */}
+            {/* Address */}
             <Field label="Address (Washington)">
               <div className="relative">
                 <input
                   ref={addressRef}
-                  className="input pastel-input w-full"
+                  className="input input-outline w-full"
                   placeholder="Start typing your address…"
                   autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
                 />
@@ -225,54 +231,51 @@ export default function Page(){
               </div>
             </Field>
 
-            {/* 1 column on phones, 2 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
-                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
+                <input ref={sqftRef} className="input input-outline" type="text" inputMode="numeric" placeholder="e.g. 1800" />
               </Field>
               <Field label="Lot size (sqft)">
-                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
+                <input ref={lotRef} className="input input-outline" type="text" inputMode="numeric" placeholder="e.g. 6000" />
               </Field>
 
-              {/* Dropdowns */}
               <Field label="Bedrooms">
-                <select ref={bedsRef} className="input pastel-select" defaultValue="">
+                <select ref={bedsRef} className="input input-outline" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="Bathrooms">
-                <select ref={bathsRef} className="input pastel-select" defaultValue="">
+                <select ref={bathsRef} className="input input-outline" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
 
-              {/* Year Built dropdown (2025 → 1900) */}
+              {/* Year built dropdown 2025→1900 */}
               <Field label="Year built">
-                <select ref={yearRef} className="input pastel-select" defaultValue="">
+                <select ref={yearRef} className="input input-outline" defaultValue="">
                   <option value="" disabled>Select year…</option>
                   {YEARS.map(y => (<option key={y} value={y}>{y}</option>))}
                 </select>
               </Field>
 
               <Field label="Garage spots">
-                <select ref={garageRef} className="input pastel-select" defaultValue="">
+                <select ref={garageRef} className="input input-outline" defaultValue="">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
             </div>
 
-            {/* 1 col on phones, 3 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Condition (1–5)">
-                <select ref={conditionRef} className="input pastel-select" defaultValue="3">
+                <select ref={conditionRef} className="input input-outline" defaultValue="3">
                   {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="View">
-                <select ref={viewRef} className="input pastel-select" defaultValue="none">
+                <select ref={viewRef} className="input input-outline" defaultValue="none">
                   <option value="none">None</option>
                   <option value="city">City</option>
                   <option value="mountain">Mountain</option>
@@ -280,7 +283,7 @@ export default function Page(){
                 </select>
               </Field>
               <Field label="Trend">
-                <select ref={trendRef} className="input pastel-select" defaultValue="flat">
+                <select ref={trendRef} className="input input-outline" defaultValue="flat">
                   <option value="declining">Declining</option>
                   <option value="flat">Flat</option>
                   <option value="rising">Rising</option>
@@ -289,7 +292,7 @@ export default function Page(){
             </div>
 
             <Field label="Renovation level">
-              <select ref={renoRef} className="input pastel-select" defaultValue="none">
+              <select ref={renoRef} className="input input-outline" defaultValue="none">
                 <option value="none">None / original</option>
                 <option value="some">Some updates (kitchen/bath)</option>
                 <option value="major">Major remodel</option>
@@ -346,4 +349,4 @@ export default function Page(){
       </main>
     </>
   );
-                    }
+                }
