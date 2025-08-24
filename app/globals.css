@@ -1,121 +1,174 @@
-/* ---------- Theme basics ---------- */
+/* ===== Clean theme (minimal, readable) ===== */
 :root{
-  --bg: #0b0b0d;
-  --card: #15161a;
-  --text: #e7eaf2;
-  --muted: #a0a6b8;
-  --border: rgba(255,255,255,0.12);
-  --ring: #60a5fa; /* focus ring */
-  --bar1: #22c55e; /* green */
-  --bar2: #60a5fa; /* blue */
-  --bar3: #a78bfa; /* purple */
-}
-html,body{background:var(--bg);color:var(--text);}
-*{box-sizing:border-box}
+  --bg:#0e0f12;           /* page background */
+  --card:#14161a;         /* cards */
+  --text:#e6e9f2;         /* main text */
+  --muted:#a7adbc;        /* secondary text */
+  --border:#262a33;       /* borders/outlines */
+  --border-strong:#2f3440;
+  --ring:#74c0fc;         /* focus ring */
+  --link:#9ec5ff;
 
-/* ---------- Cards, badges ---------- */
+  --bar1:#22c55e; /* loader bars */
+  --bar2:#60a5fa;
+  --bar3:#a78bfa;
+}
+
+html,body{
+  margin:0; padding:0;
+  background:var(--bg); color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-size:16px; line-height:1.4;
+}
+
+/* Layout helpers */
+*{ box-sizing:border-box }
+.mx-auto{ margin-left:auto; margin-right:auto }
+.max-w-6xl{ max-width:72rem }
+
+/* ===== Cards & badges ===== */
 .card{
   background:var(--card);
   border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
 }
 .badge{
-  font-size:12px;
-  padding:6px 10px;
+  font-size:.75rem;
+  color:var(--text);
+  background:transparent;
   border:1px solid var(--border);
+  padding:4px 10px;
   border-radius:999px;
   opacity:.9;
 }
 
-/* ---------- Typography ---------- */
-.section-title{font-size:1.1rem;font-weight:700}
+/* ===== Typography ===== */
+.section-title{
+  font-weight:700;
+  font-size:1.05rem;     /* smaller, tighter */
+  letter-spacing:.1px;
+  margin:0;
+}
+.label{
+  font-size:.9rem;
+  font-weight:600;
+  color:var(--text);
+}
 
-/* ---------- Inputs: transparent + outlined ---------- */
+/* ===== Inputs: transparent + subtle outline ===== */
 .input{
   width:100%;
   padding:12px 14px;
-  border-radius:14px;
-  background:transparent;               /* no fill */
+  border-radius:12px;
+  background:transparent;
   color:var(--text);
-  border:1.5px solid var(--border);     /* outline */
-  transition:border-color .15s, box-shadow .15s;
+  border:1px solid var(--border);
+  transition:border-color .15s, box-shadow .15s, background .15s;
 }
+.input::placeholder{ color: #7f8697 }
 .input:focus{
   outline:none;
   border-color:var(--ring);
-  box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 20%, transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent);
 }
-.input[disabled]{opacity:.6}
+.input[disabled]{ opacity:.65 }
 
-/* Checkbox/radio/select inherit .input, so keep neutral bg */
-.pastel-input, .pastel-select{ background:transparent; }
+/* Make selects match inputs */
+select.input{ appearance:none; background-image: none }
 
-/* ---------- Buttons ---------- */
+/* ===== Buttons ===== */
 .btn{
   background:linear-gradient(180deg,#3b82f6,#2563eb);
-  color:white; border:none; padding:12px 14px;
-  border-radius:12px; font-weight:600;
+  color:#fff;
+  border:none;
+  padding:12px 14px;
+  border-radius:12px;
+  font-weight:600;
 }
-.btn:disabled{opacity:.6}
+.btn:disabled{ opacity:.6 }
 .btn-secondary{
-  background:transparent; color:var(--text);
-  border:1.5px solid var(--border);
-  padding:12px 14px; border-radius:12px;
+  background:transparent;
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:12px 14px;
+  border-radius:12px;
 }
 
-/* ---------- Suggestion dropdown ---------- */
+/* ===== Suggestion dropdown (address) ===== */
 .suggestion-panel{
   position:absolute; top:100%; left:0; right:0;
-  background:var(--card); border:1px solid var(--border);
-  border-radius:14px; margin-top:6px; z-index:40;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-top:none;
+  border-radius:0 0 12px 12px;
+  margin-top:-1px;
+  z-index:40;
   max-height:260px; overflow:auto;
 }
 .suggestion-item{
-  width:100%; text-align:left; padding:10px 12px;
-  border:none; background:transparent; color:var(--text);
+  width:100%; text-align:left;
+  padding:10px 12px;
+  border:none; background:transparent;
+  color:var(--text);
 }
-.suggestion-item:hover{ background:rgba(255,255,255,0.06) }
+.suggestion-item:hover{ background:rgba(255,255,255,.06) }
 
-/* ---------- Summary table ---------- */
+/* ===== Summary table ===== */
 .summary-table{ width:100%; border-collapse:separate; border-spacing:0 8px }
 .summary-table th{
-  text-align:left; font-size:.85rem; color:var(--muted); width:48%;
+  text-align:left; width:46%; color:var(--muted); font-size:.85rem;
 }
 .summary-table td{ font-size:.95rem }
 
-/* ---------- Loading overlay with 3 bars ---------- */
+/* ===== Sticky top bar ===== */
+.topbar{
+  position:sticky; top:0; z-index:50;
+  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border-bottom:1px solid var(--border);
+}
+.topbar .card{
+  border-radius:12px;
+}
+.topbar a{
+  color:var(--link);
+  text-decoration:underline;
+}
+
+/* ===== Loader: 3 bars, 6s overall ===== */
 .loading-overlay{
-  position:fixed; inset:0; z-index:50; display:grid; place-items:center;
-  background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+  position:fixed; inset:0; z-index:60; display:grid; place-items:center;
+  background:rgba(0,0,0,.55); backdrop-filter:blur(4px);
 }
 .loader-card{
   width:min(560px,90vw);
-  background:var(--card); border:1px solid var(--border);
-  border-radius:18px; padding:22px;
-  box-shadow:0 20px 50px rgba(0,0,0,.5);
+  background:var(--card);
+  border:1px solid var(--border-strong);
+  border-radius:14px;
+  padding:22px;
   text-align:center;
+  box-shadow:0 20px 50px rgba(0,0,0,.5);
 }
-.bars{ display:grid; gap:10px; }
+.bars{ display:grid; gap:10px }
 .bar{
-  height:12px; width:100%; overflow:hidden;
-  background:rgba(255,255,255,0.06);
-  border-radius:999px; position:relative;
+  height:10px; width:100%;
+  background:#0f1115;
+  border:1px solid var(--border);
+  border-radius:999px;
+  overflow:hidden; position:relative;
 }
 .bar::before{
   content:""; position:absolute; inset:0;
-  transform-origin:left center;
-  transform:scaleX(0);
+  transform-origin:left center; transform:scaleX(0);
   border-radius:999px;
   animation:fill var(--dur,2s) linear infinite;
 }
-.bar1::before{ background:var(--bar1); } /* green */
-.bar2::before{ background:var(--bar2); } /* blue */
-.bar3::before{ background:var(--bar3); } /* purple */
-
-/* different speeds across time give a lively feel */
+.bar1::before{ background:var(--bar1) }
+.bar2::before{ background:var(--bar2) }
+.bar3::before{ background:var(--bar3) }
 @keyframes fill{
-  0%   { transform:scaleX(0); }
-  60%  { transform:scaleX(1); }
-  100% { transform:scaleX(1); }
+  0%{ transform:scaleX(0) }
+  55%{ transform:scaleX(1) }
+  100%{ transform:scaleX(1) }
 }
