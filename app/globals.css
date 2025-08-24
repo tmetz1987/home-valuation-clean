@@ -1,8 +1,81 @@
-@tailwind base; @tailwind components; @tailwind utilities;
-:root{color-scheme:light dark}
-body{background:#f9fafb;color:#0b0b0c}
-@media(prefers-color-scheme:dark){body{background:#0b0b0c;color:#f5f5f6}}
-.card{border-radius:16px;border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.9);box-shadow:0 1px 8px rgba(0,0,0,.04)}
-.input{width:100%;border:1px solid rgba(0,0,0,.15);border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.8)}
-.label{font-size:14px;color:#6b7280}
-.badge{display:inline-flex;align-items:center;border:1px solid rgba(0,0,0,.15);padding:2px 10px;border-radius:999px;font-size:12px}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------- Theme tokens -------- */
+:root {
+  /* dark as default (great on phones) */
+  --bg: #0b0b0c;
+  --fg: #f5f5f6;
+  --card: #141416;
+  --border: rgba(255,255,255,.08);
+  --muted: #a1a1aa;
+  --accent: #60a5fa;   /* blue-400 */
+  --accent-2: #2563eb; /* blue-600 */
+}
+
+/* Light mode if device prefers light */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f9fafb;
+    --fg: #0b0b0c;
+    --card: #ffffff;
+    --border: rgba(0,0,0,.08);
+    --muted: #6b7280;
+    --accent: #3b82f6;
+    --accent-2: #1d4ed8;
+  }
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Cards */
+.card{
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 2px 12px rgba(0,0,0,.22);
+}
+
+/* Inputs / selects / textareas */
+.input, select.input, textarea.input{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 14px;
+  background: color-mix(in oklab, var(--card) 92%, var(--bg));
+  color: var(--fg);
+  outline: none;
+}
+.input:focus{
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.input::placeholder{ color: var(--muted); }
+
+/* Labels & small text */
+.label{ font-size:14px; color: var(--muted); }
+
+/* Badge */
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:999px;
+  border:1px dashed var(--border);
+  color: var(--muted); font-size:12px;
+}
+
+/* Primary button */
+.btn{
+  width:100%;
+  border:0; border-radius:12px; padding:12px 14px;
+  font-weight:700;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff;
+}
+.btn[disabled]{ opacity:.6; }
+
+/* Section title */
+.section-title{ font-size:20px; font-weight:700; opacity:.95; }
