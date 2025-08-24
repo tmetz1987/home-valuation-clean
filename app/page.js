@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function currency(n){
   return n.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0});
@@ -30,9 +30,21 @@ export default function Page(){
   const [err,setErr]=useState(null);
   const [summary,setSummary]=useState(null);
 
-  // address suggestions (do NOT bind input value to state)
+  // suggestions state (address value is NOT in state)
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
+
+  // debounce + focus guards
+  const debounceIdRef = useRef(null);
+  const focusedRef = useRef(false);
+  const abortRef = useRef(null);
+
+  useEffect(()=>{
+    return () => {
+      if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   function clearForm(){
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
@@ -82,7 +94,7 @@ export default function Page(){
         renovations: { level: renoRef.current?.value || "none" }
       };
 
-      // map simple renovation level → detailed flags the estimator understands
+      // map renovation level → detailed flags
       if(payload.renovations.level === "some") {
         payload.renovations = { kitchen: true, bath: true };
       } else if(payload.renovations.level === "major") {
@@ -91,7 +103,6 @@ export default function Page(){
         payload.renovations = {};
       }
 
-      // Save human summary for the table
       setSummary({
         Address: payload.address,
         "Living area (sqft)": payload.sqft ?? "",
@@ -106,7 +117,7 @@ export default function Page(){
         "Renovation level": renoRef.current?.value || "none"
       });
 
-      // Do API; ensure loading screen shows at least 5s
+      // API + ensure 5s loading screen
       const api = (async ()=>{
         const r=await fetch("/api/estimate",{
           method:"POST",
@@ -158,41 +169,63 @@ export default function Page(){
               <span className="badge">WA-only Beta</span>
             </div>
 
-            {/* Address (uncontrolled + suggestions via onInput; keeps keyboard open) */}
+            {/* Address: uncontrolled + debounced suggestions. Never blur on tap. */}
             <Field label="Address (Washington)">
               <div className="relative">
                 <input
                   ref={addressRef}
                   className="input flex-1 pastel-input"
                   placeholder="Start typing your address…"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  onFocus={()=>{
+                    focusedRef.current = true;
+                    if (suggestions.length) setShowSug(true);
+                  }}
+                  onBlur={()=>{
+                    focusedRef.current = false;
+                    // don't hide immediately—let click handlers run
+                    setTimeout(()=> setShowSug(false), 120);
+                  }}
                   onInput={(e)=>{
                     const q = e.target.value || "";
-                    if (q.length < 3) {
-                      setSuggestions([]); setShowSug(false); return;
-                    }
-                    fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" })
-                      .then(r=>r.json())
-                      .then(data=>{
+                    if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
+                    if (q.length < 3) { setSuggestions([]); setShowSug(false); return; }
+                    debounceIdRef.current = setTimeout(async()=>{
+                      try{
+                        if (abortRef.current) abortRef.current.abort();
+                        const ctrl = new AbortController();
+                        abortRef.current = ctrl;
+                        const r = await fetch(`/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store", signal: ctrl.signal });
+                        const data = await r.json();
+                        if (!focusedRef.current) return;
                         setSuggestions(data?.predictions || []);
-                        setShowSug(true);
-                      })
-                      .catch(()=>{});
+                        setShowSug((data?.predictions||[]).length>0);
+                      }catch(_e){}
+                    }, 300);
                   }}
-                  onFocus={()=>{ if (suggestions.length) setShowSug(true); }}
-                  autoComplete="street-address"
                 />
                 {showSug && suggestions.length>0 && (
-                  <div className="suggestion-panel">
+                  <div className="suggestion-panel" role="listbox">
                     {suggestions.map(p=>(
                       <button
                         type="button"
                         key={p.place_id}
                         className="suggestion-item"
-                        onMouseDown={(e)=>e.preventDefault()} // prevent blur collapsing keyboard
+                        // prevent blur on mobile (mouse/touch/pointer)
+                        onMouseDown={(e)=>e.preventDefault()}
+                        onTouchStart={(e)=>e.preventDefault()}
+                        onPointerDown={(e)=>e.preventDefault()}
                         onClick={()=>{
-                          if (addressRef.current) addressRef.current.value = p.description;
+                          if (addressRef.current) {
+                            addressRef.current.value = p.description;
+                            addressRef.current.focus(); // keep keyboard up
+                          }
                           setShowSug(false);
                         }}
+                        role="option"
                       >
                         {p.description}
                       </button>
@@ -205,31 +238,49 @@ export default function Page(){
             {/* 1 column on phones, 2 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
-                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
+                <input
+                  ref={sqftRef}
+                  className="input pastel-input"
+                  type="text" inputMode="numeric"
+                  placeholder="e.g. 1800"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+                />
               </Field>
               <Field label="Lot size (sqft)">
-                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
+                <input
+                  ref={lotRef}
+                  className="input pastel-input"
+                  type="text" inputMode="numeric"
+                  placeholder="e.g. 6000"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+                />
               </Field>
 
               {/* Dropdowns */}
               <Field label="Bedrooms">
-                <select ref={bedsRef} className="input pastel-select" defaultValue="">
+                <select ref={bedsRef} className="input pastel-select" defaultValue="" autoComplete="off">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="Bathrooms">
-                <select ref={bathsRef} className="input pastel-select" defaultValue="">
+                <select ref={bathsRef} className="input pastel-select" defaultValue="" autoComplete="off">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
 
               <Field label="Year built">
-                <input ref={yearRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1995" />
+                <input
+                  ref={yearRef}
+                  className="input pastel-input"
+                  type="text" inputMode="numeric"
+                  placeholder="e.g. 1995"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
+                />
               </Field>
               <Field label="Garage spots">
-                <select ref={garageRef} className="input pastel-select" defaultValue="">
+                <select ref={garageRef} className="input pastel-select" defaultValue="" autoComplete="off">
                   <option value="" disabled>Choose…</option>
                   {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
@@ -239,12 +290,12 @@ export default function Page(){
             {/* 1 col on phones, 3 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Condition (1–5)">
-                <select ref={conditionRef} className="input pastel-select" defaultValue="3">
+                <select ref={conditionRef} className="input pastel-select" defaultValue="3" autoComplete="off">
                   {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
                 </select>
               </Field>
               <Field label="View">
-                <select ref={viewRef} className="input pastel-select" defaultValue="none">
+                <select ref={viewRef} className="input pastel-select" defaultValue="none" autoComplete="off">
                   <option value="none">None</option>
                   <option value="city">City</option>
                   <option value="mountain">Mountain</option>
@@ -252,7 +303,7 @@ export default function Page(){
                 </select>
               </Field>
               <Field label="Trend">
-                <select ref={trendRef} className="input pastel-select" defaultValue="flat">
+                <select ref={trendRef} className="input pastel-select" defaultValue="flat" autoComplete="off">
                   <option value="declining">Declining</option>
                   <option value="flat">Flat</option>
                   <option value="rising">Rising</option>
@@ -261,7 +312,7 @@ export default function Page(){
             </div>
 
             <Field label="Renovation level">
-              <select ref={renoRef} className="input pastel-select" defaultValue="none">
+              <select ref={renoRef} className="input pastel-select" defaultValue="none" autoComplete="off">
                 <option value="none">None / original</option>
                 <option value="some">Some updates (kitchen/bath)</option>
                 <option value="major">Major remodel</option>
@@ -319,4 +370,4 @@ export default function Page(){
       </main>
     </>
   );
-                  }
+          }
