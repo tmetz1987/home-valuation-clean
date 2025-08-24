@@ -1,174 +1,68 @@
-/* ===== Clean theme (minimal, readable) ===== */
 :root{
-  --bg:#0e0f12;           /* page background */
-  --card:#14161a;         /* cards */
-  --text:#e6e9f2;         /* main text */
-  --muted:#a7adbc;        /* secondary text */
-  --border:#262a33;       /* borders/outlines */
-  --border-strong:#2f3440;
-  --ring:#74c0fc;         /* focus ring */
-  --link:#9ec5ff;
+  --bg:#0e0f12;
+  --card:#14161a;
+  --text:#e6e9f2;
+  --muted:#a7adbc;
+  --border:#262a33;
+  --ring:#74c0fc;
 
-  --bar1:#22c55e; /* loader bars */
-  --bar2:#60a5fa;
-  --bar3:#a78bfa;
-}
+  --ok:#34d399;     /* pastel green when complete */
+  --err:#ef4444;    /* red when error */
 
-html,body{
-  margin:0; padding:0;
-  background:var(--bg); color:var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  font-size:16px; line-height:1.4;
+  --bar1:#22c55e; --bar2:#60a5fa; --bar3:#a78bfa;
+  --link:#cfe1ff;  /* email link */
 }
 
-/* Layout helpers */
-*{ box-sizing:border-box }
-.mx-auto{ margin-left:auto; margin-right:auto }
-.max-w-6xl{ max-width:72rem }
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Roboto,Segoe UI,Helvetica,Arial}
+*{box-sizing:border-box}
+.mx-auto{margin-inline:auto}
+.max-w-6xl{max-width:72rem}
 
-/* ===== Cards & badges ===== */
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:0 8px 24px rgba(0,0,0,.35);
-}
-.badge{
-  font-size:.75rem;
-  color:var(--text);
-  background:transparent;
-  border:1px solid var(--border);
-  padding:4px 10px;
-  border-radius:999px;
-  opacity:.9;
-}
+/* --- Cards --- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.badge{font-size:.75rem;border:1px solid var(--border);padding:4px 10px;border-radius:999px}
 
-/* ===== Typography ===== */
-.section-title{
-  font-weight:700;
-  font-size:1.05rem;     /* smaller, tighter */
-  letter-spacing:.1px;
-  margin:0;
-}
-.label{
-  font-size:.9rem;
-  font-weight:600;
-  color:var(--text);
-}
+/* --- Typo --- */
+.section-title{font-weight:700;font-size:1.05rem;margin:0}
+.label{font-size:.9rem;font-weight:600}
 
-/* ===== Inputs: transparent + subtle outline ===== */
-.input{
-  width:100%;
-  padding:12px 14px;
-  border-radius:12px;
-  background:transparent;
-  color:var(--text);
-  border:1px solid var(--border);
-  transition:border-color .15s, box-shadow .15s, background .15s;
-}
-.input::placeholder{ color: #7f8697 }
-.input:focus{
-  outline:none;
-  border-color:var(--ring);
-  box-shadow:0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent);
-}
-.input[disabled]{ opacity:.65 }
+/* --- Inputs --- */
+.input{width:100%;padding:12px 14px;border-radius:12px;background:transparent;color:var(--text);border:1px solid var(--border);transition:border-color .15s, box-shadow .15s}
+.input::placeholder{color:#7f8697}
+.input:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent)}
+/* completed / error states */
+.input.is-complete{border-color:color-mix(in srgb, var(--ok) 70%, #000 0%); box-shadow:0 0 0 2px color-mix(in srgb, var(--ok) 30%, transparent)}
+.input.is-error{border-color:var(--err); box-shadow:0 0 0 2px color-mix(in srgb, var(--err) 35%, transparent)}
 
-/* Make selects match inputs */
-select.input{ appearance:none; background-image: none }
+/* selects match inputs */
+select.input{appearance:none;background-image:none}
 
-/* ===== Buttons ===== */
-.btn{
-  background:linear-gradient(180deg,#3b82f6,#2563eb);
-  color:#fff;
-  border:none;
-  padding:12px 14px;
-  border-radius:12px;
-  font-weight:600;
-}
-.btn:disabled{ opacity:.6 }
-.btn-secondary{
-  background:transparent;
-  color:var(--text);
-  border:1px solid var(--border);
-  padding:12px 14px;
-  border-radius:12px;
-}
+/* --- Buttons --- */
+.btn{background:linear-gradient(180deg,#3b82f6,#2563eb);color:#fff;border:none;padding:12px 14px;border-radius:12px;font-weight:600}
+.btn:disabled{opacity:.6}
+.btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:12px}
 
-/* ===== Suggestion dropdown (address) ===== */
-.suggestion-panel{
-  position:absolute; top:100%; left:0; right:0;
-  background:var(--card);
-  border:1px solid var(--border);
-  border-top:none;
-  border-radius:0 0 12px 12px;
-  margin-top:-1px;
-  z-index:40;
-  max-height:260px; overflow:auto;
-}
-.suggestion-item{
-  width:100%; text-align:left;
-  padding:10px 12px;
-  border:none; background:transparent;
-  color:var(--text);
-}
-.suggestion-item:hover{ background:rgba(255,255,255,.06) }
+/* --- Suggestion dropdown --- */
+.relative{position:relative}
+.suggestion-panel{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;margin-top:-1px;z-index:1000;max-height:260px;overflow:auto}
+.suggestion-item{width:100%;text-align:left;padding:10px 12px;border:none;background:transparent;color:var(--text)}
+.suggestion-item:hover{background:rgba(255,255,255,.06)}
 
-/* ===== Summary table ===== */
-.summary-table{ width:100%; border-collapse:separate; border-spacing:0 8px }
-.summary-table th{
-  text-align:left; width:46%; color:var(--muted); font-size:.85rem;
-}
-.summary-table td{ font-size:.95rem }
+/* --- Sticky contact bar --- */
+.topbar{position:sticky;top:0;z-index:60;backdrop-filter:blur(6px);background:color-mix(in srgb, var(--bg) 70%, transparent);border-bottom:1px solid var(--border)}
+.clean-link{color:var(--link);text-decoration:none}
+.clean-link:hover{text-decoration:underline}
 
-/* ===== Sticky top bar ===== */
-.topbar{
-  position:sticky; top:0; z-index:50;
-  backdrop-filter: blur(6px);
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-  border-bottom:1px solid var(--border);
-}
-.topbar .card{
-  border-radius:12px;
-}
-.topbar a{
-  color:var(--link);
-  text-decoration:underline;
-}
+/* --- Summary table --- */
+.summary-table{width:100%;border-collapse:separate;border-spacing:0 8px}
+.summary-table th{text-align:left;width:46%;color:var(--muted);font-size:.85rem}
+.summary-table td{font-size:.95rem}
 
-/* ===== Loader: 3 bars, 6s overall ===== */
-.loading-overlay{
-  position:fixed; inset:0; z-index:60; display:grid; place-items:center;
-  background:rgba(0,0,0,.55); backdrop-filter:blur(4px);
-}
-.loader-card{
-  width:min(560px,90vw);
-  background:var(--card);
-  border:1px solid var(--border-strong);
-  border-radius:14px;
-  padding:22px;
-  text-align:center;
-  box-shadow:0 20px 50px rgba(0,0,0,.5);
-}
-.bars{ display:grid; gap:10px }
-.bar{
-  height:10px; width:100%;
-  background:#0f1115;
-  border:1px solid var(--border);
-  border-radius:999px;
-  overflow:hidden; position:relative;
-}
-.bar::before{
-  content:""; position:absolute; inset:0;
-  transform-origin:left center; transform:scaleX(0);
-  border-radius:999px;
-  animation:fill var(--dur,2s) linear infinite;
-}
-.bar1::before{ background:var(--bar1) }
-.bar2::before{ background:var(--bar2) }
-.bar3::before{ background:var(--bar3) }
-@keyframes fill{
-  0%{ transform:scaleX(0) }
-  55%{ transform:scaleX(1) }
-  100%{ transform:scaleX(1) }
-}
+/* --- Loader (3 bars) --- */
+.loading-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
+.loader-card{width:min(560px,90vw);background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.bars{display:grid;gap:10px}
+.bar{height:10px;width:100%;background:#0f1115;border:1px solid var(--border);border-radius:999px;overflow:hidden;position:relative}
+.bar::before{content:"";position:absolute;inset:0;transform-origin:left center;transform:scaleX(0);border-radius:999px;animation:fill var(--dur,2s) linear infinite}
+.bar1::before{background:var(--bar1)}.bar2::before{background:var(--bar2)}.bar3::before{background:var(--bar3)}
+@keyframes fill{0%{transform:scaleX(0)}55%{transform:scaleX(1)}100%{transform:scaleX(1)}}
