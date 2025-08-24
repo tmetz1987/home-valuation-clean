@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function currency(n){
   return n.toLocaleString(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0});
@@ -12,7 +12,7 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 export default function Page(){
-  // Uncontrolled inputs via refs (prevents Android keyboard from closing)
+  // Uncontrolled refs keep Android keyboard open
   const addressRef = useRef(null);
   const sqftRef = useRef(null);
   const lotRef = useRef(null);
@@ -26,10 +26,40 @@ export default function Page(){
   const renoRef = useRef(null);
 
   const [loading,setLoading]=useState(false);
-  const [prefilling,setPrefilling]=useState(false);
   const [res,setRes]=useState(null);
   const [err,setErr]=useState(null);
-  const [summary,setSummary]=useState(null); // what user submitted
+  const [summary,setSummary]=useState(null);
+
+  // Address autocomplete
+  const [addrQuery, setAddrQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSug, setShowSug] = useState(false);
+  const debRef = useRef(null);
+
+  useEffect(()=>{
+    if (debRef.current) clearTimeout(debRef.current);
+    if (!addrQuery || addrQuery.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    debRef.current = setTimeout(async ()=>{
+      try{
+        const r = await fetch(`/api/places?q=${encodeURIComponent(addrQuery)}`, { cache: "no-store" });
+        const data = await r.json();
+        if (r.ok) {
+          setSuggestions(data?.predictions || []);
+          setShowSug(true);
+        }
+      }catch(_e){ /* ignore */ }
+    }, 250);
+    return () => debRef.current && clearTimeout(debRef.current);
+  }, [addrQuery]);
+
+  function pickSuggestion(desc){
+    if (addressRef.current) addressRef.current.value = desc;
+    setShowSug(false);
+    setSuggestions([]);
+  }
 
   function clearForm(){
     for (const r of [sqftRef, lotRef, bedsRef, bathsRef, yearRef, garageRef, conditionRef]) {
@@ -62,26 +92,6 @@ export default function Page(){
     a.remove(); URL.revokeObjectURL(url);
   }
 
-  async function onPrefill(){
-    setPrefilling(true); setErr(null);
-    try{
-      const r = await fetch("/api/prefill", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ address: addressRef.current.value })
-      });
-      const data = await r.json();
-      if(!r.ok) throw new Error(data?.error || "Prefill failed");
-      const s = data.subject || {};
-      if(s.sqft && sqftRef.current) sqftRef.current.value = s.sqft;
-      if(s.lotSqft && lotRef.current) lotRef.current.value = s.lotSqft;
-      if(s.yearBuilt && yearRef.current) yearRef.current.value = s.yearBuilt;
-      if(s.beds && bedsRef.current) bedsRef.current.value = s.beds;
-      if(s.baths && bathsRef.current) bathsRef.current.value = s.baths;
-    }catch(e){ setErr(e.message); }
-    finally{ setPrefilling(false); }
-  }
-
   async function onEstimate(){
     setLoading(true); setErr(null);
     try{
@@ -99,7 +109,7 @@ export default function Page(){
         renovations: { level: renoRef.current?.value || "none" }
       };
 
-      // map simple renovation level to detailed flags
+      // Map simple renovation level → detailed flags
       if(payload.renovations.level === "some") {
         payload.renovations = { kitchen: true, bath: true };
       } else if(payload.renovations.level === "major") {
@@ -108,7 +118,7 @@ export default function Page(){
         payload.renovations = {};
       }
 
-      // Save a human summary (for the right-side table)
+      // Save a human summary
       setSummary({
         Address: payload.address,
         "Living area (sqft)": payload.sqft ?? "",
@@ -123,7 +133,7 @@ export default function Page(){
         "Renovation level": renoRef.current?.value || "none"
       });
 
-      // Do the API call + ensure loading screen shows at least 5 seconds
+      // Do API + ensure loading screen shows ≥ 5s
       const api = (async ()=>{
         const r=await fetch("/api/estimate",{
           method:"POST",
@@ -135,9 +145,8 @@ export default function Page(){
         return data;
       })();
 
-      // Minimum 5 seconds, but if API is slower, we'll wait for it
-      const data = await api;      // wait for estimate
-      await delay(5000);           // ensure 5s overlay
+      const data = await api;
+      await delay(5000);
       setRes(data);
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
@@ -177,43 +186,76 @@ export default function Page(){
             </div>
 
             <Field label="Address (Washington)">
-              <div className="flex gap-2">
-                <input ref={addressRef} className="input flex-1" placeholder="123 Main St, Seattle, WA 98101" />
-                <button type="button" className="btn-secondary" onClick={onPrefill} disabled={prefilling}>
-                  {prefilling ? "Prefilling…" : "Prefill"}
-                </button>
+              <div className="relative">
+                <input
+                  ref={addressRef}
+                  className="input flex-1 pastel-input"
+                  placeholder="Start typing your address…"
+                  onChange={(e)=>setAddrQuery(e.target.value)}
+                  onFocus={()=>{ if(suggestions.length) setShowSug(true); }}
+                  autoComplete="street-address"
+                />
+                {showSug && suggestions.length>0 && (
+                  <div className="suggestion-panel">
+                    {suggestions.map(p=>(
+                      <button
+                        type="button"
+                        key={p.place_id}
+                        className="suggestion-item"
+                        onMouseDown={(e)=>e.preventDefault()}
+                        onClick={()=>pickSuggestion(p.description)}
+                      >
+                        {p.description}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </Field>
 
             {/* 1 column on phones, 2 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Living area (sqft)">
-                <input ref={sqftRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
+                <input ref={sqftRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1800" />
               </Field>
               <Field label="Lot size (sqft)">
-                <input ref={lotRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
+                <input ref={lotRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 6000" />
               </Field>
+
+              {/* Dropdowns you asked for */}
               <Field label="Bedrooms">
-                <input ref={bedsRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 3" />
+                <select ref={bedsRef} className="input pastel-select" defaultValue="">
+                  <option value="" disabled>Choose…</option>
+                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                </select>
               </Field>
               <Field label="Bathrooms">
-                <input ref={bathsRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 2" />
+                <select ref={bathsRef} className="input pastel-select" defaultValue="">
+                  <option value="" disabled>Choose…</option>
+                  {Array.from({length:10},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                </select>
               </Field>
+
               <Field label="Year built">
-                <input ref={yearRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 1995" />
+                <input ref={yearRef} className="input pastel-input" type="text" inputMode="numeric" placeholder="e.g. 1995" />
               </Field>
               <Field label="Garage spots">
-                <input ref={garageRef} className="input" type="text" inputMode="numeric" placeholder="e.g. 2" />
+                <select ref={garageRef} className="input pastel-select" defaultValue="">
+                  <option value="" disabled>Choose…</option>
+                  {Array.from({length:7},(_,i)=>i).map(n=>(<option key={n} value={n}>{n}</option>))}
+                </select>
               </Field>
             </div>
 
             {/* 1 col on phones, 3 on bigger screens */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Condition (1–5)">
-                <input ref={conditionRef} className="input" type="text" inputMode="numeric" placeholder="1 to 5" defaultValue="3" />
+                <select ref={conditionRef} className="input pastel-select" defaultValue="3">
+                  {[1,2,3,4,5].map(n=>(<option key={n} value={n}>{n}</option>))}
+                </select>
               </Field>
               <Field label="View">
-                <select ref={viewRef} className="input" defaultValue="none">
+                <select ref={viewRef} className="input pastel-select" defaultValue="none">
                   <option value="none">None</option>
                   <option value="city">City</option>
                   <option value="mountain">Mountain</option>
@@ -221,7 +263,7 @@ export default function Page(){
                 </select>
               </Field>
               <Field label="Trend">
-                <select ref={trendRef} className="input" defaultValue="flat">
+                <select ref={trendRef} className="input pastel-select" defaultValue="flat">
                   <option value="declining">Declining</option>
                   <option value="flat">Flat</option>
                   <option value="rising">Rising</option>
@@ -230,7 +272,7 @@ export default function Page(){
             </div>
 
             <Field label="Renovation level">
-              <select ref={renoRef} className="input" defaultValue="none">
+              <select ref={renoRef} className="input pastel-select" defaultValue="none">
                 <option value="none">None / original</option>
                 <option value="some">Some updates (kitchen/bath)</option>
                 <option value="major">Major remodel</option>
@@ -260,7 +302,6 @@ export default function Page(){
                   <div className="text-lg font-semibold">{currency(res.ppsfUsed)}/sqft</div>
                 </div>
 
-                {/* Summary of what user entered */}
                 {summary && (
                   <div className="mt-2">
                     <div className="text-sm font-medium mb-2">Your inputs</div>
@@ -288,4 +329,4 @@ export default function Page(){
       </main>
     </>
   );
-}
+                                   }
